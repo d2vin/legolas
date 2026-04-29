@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    color: #1e293b;
+    background: #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .scroll-area { flex: 1; overflow-y: auto; padding: 12px 12px 0 12px; }
+  h1 {
+    font-size: 13px; font-weight: 700; color: #0f172a;
+    margin-bottom: 10px; padding-bottom: 8px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .form-group { margin-bottom: 9px; }
+  label {
+    display: block; font-size: 10px; font-weight: 600;
+    color: #64748b; margin-bottom: 3px;
+    text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  input[type="text"],
+  input[type="number"],
+  input[type="url"],
+  textarea,
+  select {
+    width: 100%; padding: 5px 8px;
+    border: 1px solid #cbd5e1; border-radius: 4px;
+    font-size: 12px; color: #1e293b; background: #fff;
+    outline: none; transition: border-color 0.15s;
+  }
+  input:focus, textarea:focus, select:focus { border-color: #6366f1; }
+  textarea { resize: vertical; min-height: 56px; font-family: inherit; }
+  .color-row { display: flex; gap: 6px; align-items: center; }
+  .color-row input[type="color"] {
+    width: 32px; height: 28px; padding: 2px 2px;
+    border: 1px solid #cbd5e1; border-radius: 4px;
+    cursor: pointer; flex-shrink: 0;
+  }
+  .color-row input[type="text"] { flex: 1; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px; }
+  small { font-size: 10px; color: #94a3b8; display: block; margin-top: 2px; }
+
+  /* Collapsible section */
+  .section {
+    background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 6px; margin-bottom: 8px; overflow: hidden;
+  }
+  .section-hd {
+    padding: 7px 10px; font-size: 10px; font-weight: 700;
+    color: #475569; text-transform: uppercase; letter-spacing: 0.4px;
+    cursor: pointer; user-select: none;
+    display: flex; justify-content: space-between; align-items: center;
+    background: #f8fafc;
+  }
+  .section-hd:hover { background: #f1f5f9; }
+  .section-bd { padding: 10px; border-top: 1px solid #e2e8f0; }
+  .section-bd.hidden { display: none; }
+
+  /* Checkbox row */
+  .chk { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+  .chk input[type="checkbox"] { width: auto; cursor: pointer; }
+  .chk label {
+    margin: 0; text-transform: none; letter-spacing: 0;
+    font-size: 12px; color: #374151; font-weight: 400; cursor: pointer;
+  }
+
+  /* Poll options */
+  .opt-row { display: flex; gap: 5px; margin-bottom: 5px; align-items: center; }
+  .opt-row input { flex: 1; }
+  .btn-rm {
+    background: none; border: none; cursor: pointer;
+    color: #94a3b8; font-size: 13px; padding: 2px 4px; flex-shrink: 0;
+  }
+  .btn-rm:hover { color: #ef4444; }
+  .btn-add-opt {
+    background: none; border: 1px dashed #cbd5e1; border-radius: 4px;
+    padding: 5px; width: 100%; color: #64748b; cursor: pointer;
+    font-size: 11px; margin-top: 2px;
+  }
+  .btn-add-opt:hover { background: #f8fafc; border-color: #94a3b8; }
+
+  /* Actions bar */
+  .actions {
+    display: flex; gap: 8px;
+    padding: 10px 12px;
+    background: #fff;
+    border-top: 1px solid #e2e8f0;
+    flex-shrink: 0;
+  }
+  .btn {
+    flex: 1; padding: 8px; border: none; border-radius: 5px;
+    font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s;
+  }
+  .btn-primary { background: #6366f1; color: #fff; }
+  .btn-primary:hover { background: #4f46e5; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+  .btn-secondary:hover { background: #e2e8f0; }
+</style>
+</head>
+<body>
+
+<div class="scroll-area">
+  <h1>Newsletter Block Builder</h1>
+
+  <!-- Block type selector -->
+  <div class="form-group">
+    <label>Block Type</label>
+    <select id="blockType" onchange="onTypeChange()">
+      <optgroup label="Text">
+        <option value="paragraph">Paragraph</option>
+        <option value="heading">Heading</option>
+        <option value="blockquote">Blockquote</option>
+        <option value="footer">Footer</option>
+      </optgroup>
+      <optgroup label="Media">
+        <option value="image">Image</option>
+        <option value="logo">Logo</option>
+        <option value="youtube">YouTube</option>
+        <option value="audio">Audio</option>
+      </optgroup>
+      <optgroup label="Interactive">
+        <option value="button">Button</option>
+        <option value="poll">Poll</option>
+      </optgroup>
+      <optgroup label="Layout">
+        <option value="layout">Layout (Side-by-Side)</option>
+        <option value="nested-layout-2-column">2-Column Layout</option>
+        <option value="divider">Divider</option>
+      </optgroup>
+      <optgroup label="Content">
+        <option value="dynamic">Dynamic (URL Embed)</option>
+        <option value="curation">Curation</option>
+        <option value="newrss">New RSS</option>
+        <option value="wordpress">WordPress</option>
+        <option value="rss">RSS (Legacy)</option>
+        <option value="news">News</option>
+      </optgroup>
+      <optgroup label="Ads &amp; Promo">
+        <option value="newpromotion">New Promotion</option>
+        <option value="promotion">Promotion (Legacy)</option>
+      </optgroup>
+      <optgroup label="Social">
+        <option value="profile">Profile</option>
+        <option value="share">Share</option>
+      </optgroup>
+      <optgroup label="Integrations">
+        <option value="html">HTML</option>
+        <option value="aiText">AI Text</option>
+        <option value="evvnt">Evvnt Events</option>
+        <option value="revContent">RevContent</option>
+        <option value="iterable">Iterable</option>
+        <option value="googleDocs">Google Docs</option>
+        <option value="view_in_browser">View in Browser</option>
+      </optgroup>
+    </select>
+  </div>
+
+  <!-- Common settings (collapsible) -->
+  <div class="section">
+    <div class="section-hd" onclick="toggleSection('common')">
+      Common Settings <span id="common-icon">▼</span>
+    </div>
+    <div class="section-bd" id="common-bd">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Background</label>
+          <div class="color-row">
+            <input type="color" id="c_bg" value="#FFFFFF" oninput="syncPicker('c_bg')">
+            <input type="text" id="c_bg_t" value="#FFFFFF" oninput="syncText('c_bg')">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Text Color</label>
+          <div class="color-row">
+            <input type="color" id="c_tc" value="#020617" oninput="syncPicker('c_tc')">
+            <input type="text" id="c_tc_t" value="#020617" oninput="syncText('c_tc')">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Padding</label>
+        <div class="grid-4">
+          <div><input type="number" id="c_pt" value="10" min="0"><small>Top</small></div>
+          <div><input type="number" id="c_pr" value="25" min="0"><small>Right</small></div>
+          <div><input type="number" id="c_pb" value="10" min="0"><small>Bottom</small></div>
+          <div><input type="number" id="c_pl" value="25" min="0"><small>Left</small></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Font Size</label>
+          <input type="number" id="c_fs" value="14" min="1">
+        </div>
+        <div class="form-group">
+          <label>Line Height</label>
+          <input type="number" id="c_lh" value="1.4" min="0.5" step="0.1">
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Default Font</label>
+          <input type="text" id="c_font" value="Arial">
+        </div>
+        <div class="form-group">
+          <label>Font Fallback</label>
+          <input type="text" id="c_fontfb" value="Arial">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Border</label>
+        <div class="grid-2" style="margin-bottom:5px">
+          <div class="color-row">
+            <input type="color" id="c_bc" value="#CCCCCC" oninput="syncPicker('c_bc')">
+            <input type="text" id="c_bc_t" value="transparent" oninput="syncText('c_bc')">
+          </div>
+          <select id="c_bs">
+            <option value="solid">Solid</option>
+            <option value="dashed">Dashed</option>
+            <option value="dotted">Dotted</option>
+          </select>
+        </div>
+        <div class="grid-4">
+          <div><input type="number" id="c_bt" value="0" min="0"><small>Top</small></div>
+          <div><input type="number" id="c_br" value="0" min="0"><small>Right</small></div>
+          <div><input type="number" id="c_bb" value="0" min="0"><small>Bottom</small></div>
+          <div><input type="number" id="c_bl" value="0" min="0"><small>Left</small></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Block-specific fields -->
+  <div id="specific"></div>
+  <div style="height:8px"></div>
+</div>
+
+<div class="actions">
+  <button class="btn btn-secondary" onclick="cancel()">Cancel</button>
+  <button class="btn btn-primary" onclick="createBlock()">Create Block</button>
+</div>
+
+<script>
+// ─── Color helpers ────────────────────────────────────────────────────────────
+function syncPicker(id) {
+  const t = document.getElementById(id + '_t');
+  if (t) t.value = document.getElementById(id).value.toUpperCase();
+}
+function syncText(id) {
+  const t = document.getElementById(id + '_t');
+  const p = document.getElementById(id);
+  if (t && p && /^#[0-9A-Fa-f]{6}$/.test(t.value)) p.value = t.value;
+}
+function colorVal(id, fallback) {
+  const t = document.getElementById(id + '_t');
+  if (t) return t.value || fallback;
+  const p = document.getElementById(id);
+  return p ? p.value : fallback;
+}
+
+// ─── Section toggle ───────────────────────────────────────────────────────────
+function toggleSection(id) {
+  const bd = document.getElementById(id + '-bd');
+  const ic = document.getElementById(id + '-icon');
+  bd.classList.toggle('hidden');
+  ic.textContent = bd.classList.contains('hidden') ? '▶' : '▼';
+}
+
+// ─── Read helpers ─────────────────────────────────────────────────────────────
+function v(id, fb) {
+  const el = document.getElementById(id);
+  return el ? el.value : (fb !== undefined ? fb : '');
+}
+function n(id, fb) { return parseFloat(v(id, String(fb !== undefined ? fb : 0))) || 0; }
+function i(id, fb) { return parseInt(v(id, String(fb !== undefined ? fb : 0))) || 0; }
+function chk(id, fb) {
+  const el = document.getElementById(id);
+  return el ? el.checked : (fb !== undefined ? fb : false);
+}
+
+// ─── Poll options state ───────────────────────────────────────────────────────
+let pollOpts = ['Option 1', 'Option 2'];
+
+function renderPollOpts() {
+  const c = document.getElementById('pollOpts');
+  if (!c) return;
+  c.innerHTML = '';
+  pollOpts.forEach((opt, idx) => {
+    const row = document.createElement('div');
+    row.className = 'opt-row';
+    row.innerHTML = `<input type="text" value="${opt.replace(/"/g,'&quot;')}" oninput="pollOpts[${idx}]=this.value" placeholder="Option ${idx+1}"><button class="btn-rm" onclick="rmPollOpt(${idx})">✕</button>`;
+    c.appendChild(row);
+  });
+}
+function addPollOpt() { pollOpts.push('Option ' + (pollOpts.length + 1)); renderPollOpts(); }
+function rmPollOpt(i) { pollOpts.splice(i, 1); renderPollOpts(); }
+
+// ─── Type-specific form templates ─────────────────────────────────────────────
+function tplParagraph() { return `
+  <div class="form-group"><label>Text</label>
+    <textarea id="f_text">Start writing...</textarea></div>
+  <div class="form-group"><label>Alignment</label>
+    <select id="f_align"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div>
+`; }
+
+function tplHeading() { return `
+  <div class="form-group"><label>Heading Level</label>
+    <select id="f_ht"><option value="h1">H1</option><option value="h2">H2</option><option value="h3">H3</option><option value="h4">H4</option><option value="h5">H5</option><option value="h6">H6</option></select></div>
+  <div class="form-group"><label>Text</label>
+    <textarea id="f_text">Start writing...</textarea></div>
+  <div class="form-group"><label>Alignment</label>
+    <select id="f_align"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div>
+`; }
+
+function tplBlockquote() { return `
+  <div class="form-group"><label>Quote Text</label>
+    <textarea id="f_text">A compelling quote goes here.</textarea></div>
+  <div class="form-group"><label>Accent Border Color</label>
+    <div class="color-row">
+      <input type="color" id="f_bqc" value="#1D2D4D" oninput="syncPicker('f_bqc')">
+      <input type="text" id="f_bqc_t" value="#1D2D4D" oninput="syncText('f_bqc')">
+    </div></div>
+`; }
+
+function tplButton() { return `
+  <div class="form-group"><label>Button Text</label>
+    <input type="text" id="f_val" value="Click Here"></div>
+  <div class="form-group"><label>Link URL</label>
+    <input type="url" id="f_link" value="https://example.com"></div>
+  <div class="grid-2">
+    <div class="form-group"><label>Button Background</label>
+      <div class="color-row">
+        <input type="color" id="f_btnbg" value="#1D2D4D" oninput="syncPicker('f_btnbg')">
+        <input type="text" id="f_btnbg_t" value="#1D2D4D" oninput="syncText('f_btnbg')">
+      </div></div>
+    <div class="form-group"><label>Button Text Color</label>
+      <div class="color-row">
+        <input type="color" id="f_btnc" value="#FFFFFF" oninput="syncPicker('f_btnc')">
+        <input type="text" id="f_btnc_t" value="#FFFFFF" oninput="syncText('f_btnc')">
+      </div></div>
+  </div>
+  <div class="grid-2">
+    <div class="form-group"><label>Alignment</label>
+      <select id="f_align"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div>
+    <div class="form-group"><label>Border Radius</label>
+      <input type="number" id="f_btr" value="6" min="0"></div>
+  </div>
+`; }
+
+function tplImage() { return `
+  <div class="form-group"><label>Image URL</label>
+    <input type="url" id="f_src" value="https://ucarecdn.com/placeholder.jpg"></div>
+  <div class="form-group"><label>Alt Text</label>
+    <input type="text" id="f_alt" value=""></div>
+  <div class="form-group"><label>Link URL (optional)</label>
+    <input type="url" id="f_link" value=""></div>
+  <div class="grid-2">
+    <div class="form-group"><label>Width</label>
+      <input type="number" id="f_width" value="600" min="1"></div>
+    <div class="form-group"><label>Smart Crop</label>
+      <select id="f_crop"><option value="original">Original</option><option value="square">Square</option><option value="4:3">4:3</option><option value="3:4">3:4</option><option value="circle">Circle</option></select></div>
+  </div>
+  <div class="form-group"><label>Alignment</label>
+    <select id="f_align"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div>
+`; }
+
+function tplLogo() { return `
+  <div class="form-group"><label>Logo URL</label>
+    <input type="url" id="f_src" value="https://ucarecdn.com/logo.png"></div>
+  <div class="form-group"><label>Alt Text</label>
+    <input type="text" id="f_alt" value="logo for My Newsletter"></div>
+  <div class="form-group"><label>Link URL (optional)</label>
+    <input type="url" id="f_link" value=""></div>
+  <div class="grid-2">
+    <div class="form-group"><label>Width</label>
+      <input type="number" id="f_width" value="200" min="1"></div>
+    <div class="form-group"><label>Alignment</label>
+      <select id="f_align"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div>
+  </div>
+`; }
+
+function tplDivider() { return `
+  <div class="grid-2">
+    <div class="form-group"><label>Color</label>
+      <div class="color-row">
+        <input type="color" id="f_dc" value="#CCCCCC" oninput="syncPicker('f_dc')">
+        <input type="text" id="f_dc_t" value="#CCCCCC" oninput="syncText('f_dc')">
+      </div></div>
+    <div class="form-group"><label>Style</label>
+      <select id="f_ds"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></div>
+  </div>
+  <div class="form-group"><label>Thickness (px)</label>
+    <input type="number" id="f_dw" value="1" min="1"></div>
+`; }
+
+function tplHtml() { return `
+  <div class="form-group"><label>HTML Content</label>
+    <textarea id="f_html" style="min-height:90px;font-family:monospace;font-size:11px">&lt;p&gt;Custom HTML goes here&lt;/p&gt;</textarea></div>
+  <div class="chk">
+    <input type="checkbox" id="f_relaxed">
+    <label for="f_relaxed">Relaxed mode (allow broader HTML)</label>
+  </div>
+`; }
+
+function tplYoutube() { return `
+  <div class="form-group"><label>YouTube URL</label>
+    <input type="url" id="f_link" value="https://www.youtube.com/watch?v=dQw4w9WgXcQ"></div>
+  <div class="form-group"><label>Thumbnail URL</label>
+    <input type="url" id="f_src" value="https://ucarecdn.com/video-thumbnail.jpg"></div>
+  <div class="form-group"><label>Alt Text</label>
+    <input type="text" id="f_alt" value=""></div>
+  <div class="grid-2">
+    <div class="form-group"><label>Width</label>
+      <input type="number" id="f_width" value="600" min="1"></div>
+    <div class="form-group"><label>Alignment</label>
+      <select id="f_align"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div>
+  </div>
+  <div class="chk"><input type="checkbox" id="f_play"><label for="f_play">Show play icon overlay</label></div>
+`; }
+
+function tplPoll() { return `
+  <div class="form-group"><label>Poll Title</label>
+    <input type="text" id="f_ptitle" value="Weekly Poll"></div>
+  <div class="form-group"><label>Question Text</label>
+    <textarea id="f_qtext">What is your favorite color?</textarea></div>
+  <div class="form-group"><label>Poll Type</label>
+    <select id="f_ptype">
+      <option value="1">Single Selection (Vote)</option>
+      <option value="2">Quiz</option>
+      <option value="3">Feedback Scale</option>
+    </select></div>
+  <div class="form-group"><label>Options</label>
+    <div id="pollOpts"></div>
+    <button class="btn-add-opt" onclick="addPollOpt()">+ Add Option</button>
+  </div>
+  <div class="form-group"><label>Confirmation Message</label>
+    <input type="text" id="f_confirm" value="Thanks for voting!"></div>
+  <div class="grid-2">
+    <div class="form-group"><label>Button Background</label>
+      <div class="color-row">
+        <input type="color" id="f_pbg" value="#1D2D4D" oninput="syncPicker('f_pbg')">
+        <input type="text" id="f_pbg_t" value="#1D2D4D" oninput="syncText('f_pbg')">
+      </div></div>
+    <div class="form-group"><label>Button Text Color</label>
+      <div class="color-row">
+        <input type="color" id="f_pc" value="#FFFFFF" oninput="syncPicker('f_pc')">
+        <input type="text" id="f_pc_t" value="#FFFFFF" oninput="syncText('f_pc')">
+      </div></div>
+  </div>
+  <div class="form-group"><label>Button Alignment</label>
+    <select id="f_btalign">
+      <option value="full width">Full Width</option>
+      <option value="left">Left</option>
+      <option value="center">Center</option>
+      <option value="right">Right</option>
+    </select></div>
+  <div class="chk"><input type="checkbox" id="f_anon"><label for="f_anon">Anonymous responses</label></div>
+  <div class="chk"><input type="checkbox" id="f_showres"><label for="f_showres">Show results on response page</label></div>
+`; }
+
+function tplContentBlock(type) {
+  const extra = type === 'curation' ? '' : '';
+  return `
+  <div class="form-group"><label>Keyword / Search</label>
+    <input type="text" id="f_kw" value=""></div>
+  <div class="grid-2">
+    <div class="form-group"><label>Item Count</label>
+      <input type="number" id="f_ic" value="1" min="1"></div>
+    <div class="form-group"><label>Item Offset</label>
+      <input type="number" id="f_io" value="0" min="0"></div>
+  </div>
+  <div class="form-group"><label>Display Elements</label>
+    <div class="chk"><input type="checkbox" id="f_hTitle" checked><label for="f_hTitle">Title</label></div>
+    <div class="chk"><input type="checkbox" id="f_hExcerpt" checked><label for="f_hExcerpt">Excerpt</label></div>
+    <div class="chk"><input type="checkbox" id="f_hImage" checked><label for="f_hImage">Image</label></div>
+    <div class="chk"><input type="checkbox" id="f_hAuthor"><label for="f_hAuthor">Author</label></div>
+    <div class="chk"><input type="checkbox" id="f_hDate"><label for="f_hDate">Published Date</label></div>
+    <div class="chk"><input type="checkbox" id="f_hSource"><label for="f_hSource">Source</label></div>
+    <div class="chk"><input type="checkbox" id="f_hCaption" checked><label for="f_hCaption">Image Caption</label></div>
+  </div>
+  <div class="form-group"><label>Column Gap</label>
+    <input type="number" id="f_gap" value="50" min="0"></div>
+  ${extra}
+`; }
+
+function tplDynamic() { return `
+  <div class="form-group"><label>Article URL</label>
+    <input type="url" id="f_link" value="https://example.com/article"></div>
+  <div class="form-group"><label>Display Elements</label>
+    <div class="chk"><input type="checkbox" id="f_hTitle" checked><label for="f_hTitle">Title</label></div>
+    <div class="chk"><input type="checkbox" id="f_hExcerpt" checked><label for="f_hExcerpt">Excerpt</label></div>
+    <div class="chk"><input type="checkbox" id="f_hImage" checked><label for="f_hImage">Image</label></div>
+    <div class="chk"><input type="checkbox" id="f_hAuthor"><label for="f_hAuthor">Author</label></div>
+    <div class="chk"><input type="checkbox" id="f_hDate"><label for="f_hDate">Published Date</label></div>
+    <div class="chk"><input type="checkbox" id="f_hSource"><label for="f_hSource">Source/Site Name</label></div>
+  </div>
+  <div class="form-group"><label>Column Gap</label>
+    <input type="number" id="f_gap" value="50" min="0"></div>
+`; }
+
+function tplPromotion() { return `
+  <div class="form-group"><label>Title</label>
+    <input type="text" id="f_title" value=""></div>
+  <div class="form-group"><label>Disclaimer Text</label>
+    <input type="text" id="f_disc" value="Sponsored"></div>
+  <div class="chk"><input type="checkbox" id="f_showDisc" checked><label for="f_showDisc">Show disclaimer</label></div>
+`; }
+
+function tplNewPromotion() { return `
+  <div class="form-group"><label>Title</label>
+    <input type="text" id="f_title" value="Promotion placeholder"></div>
+  <div class="form-group"><label>Zone</label>
+    <input type="number" id="f_zone" value="0" min="0"></div>
+  <div class="form-group"><label>Disclaimer Text</label>
+    <input type="text" id="f_disc" value="Sponsored"></div>
+  <div class="chk"><input type="checkbox" id="f_showDisc" checked><label for="f_showDisc">Show disclaimer</label></div>
+  <div class="chk"><input type="checkbox" id="f_twocol"><label for="f_twocol">Two-column layout</label></div>
+  <div class="chk"><input type="checkbox" id="f_stack" checked><label for="f_stack">Stack on mobile</label></div>
+`; }
+
+function tplProfile() { return `
+  <div class="grid-2">
+    <div class="form-group"><label>Alignment</label>
+      <select id="f_align"><option value="left">Left</option><option value="center" selected>Center</option><option value="right">Right</option></select></div>
+    <div class="form-group"><label>Display</label>
+      <select id="f_disp"><option value="0">Icons only</option><option value="1">Text only</option></select></div>
+  </div>
+  <div class="form-group"><label>Color</label>
+    <input type="text" id="f_color" value="origin" placeholder="'origin' or #hex">
+    <small>Use "origin" for brand color, or a hex value</small></div>
+  <div class="form-group"><label>Gap (px)</label>
+    <input type="number" id="f_gap" value="16" min="0"></div>
+`; }
+
+function tplShare() { return `
+  <div class="grid-2">
+    <div class="form-group"><label>Alignment</label>
+      <select id="f_align"><option value="left">Left</option><option value="center" selected>Center</option><option value="right">Right</option></select></div>
+    <div class="form-group"><label>Display</label>
+      <select id="f_disp"><option value="0">Icons only</option><option value="1">Text only</option></select></div>
+  </div>
+  <div class="form-group"><label>Color</label>
+    <input type="text" id="f_color" value="origin" placeholder="'origin' or #hex">
+    <small>Use "origin" for brand color, or a hex value</small></div>
+  <div class="form-group"><label>Gap (px)</label>
+    <input type="number" id="f_gap" value="16" min="0"></div>
+  <div class="chk"><input type="checkbox" id="f_custom"><label for="f_custom">Use custom hex color</label></div>
+`; }
+
+function tplRss() { return `
+  <div class="form-group"><label>RSS Feed URL</label>
+    <input type="url" id="f_link" value="https://example.com/rss.xml"></div>
+  <div class="grid-2">
+    <div class="form-group"><label>Item Count</label>
+      <input type="number" id="f_count" value="1" min="1"></div>
+    <div class="form-group"><label>Offset</label>
+      <input type="number" id="f_offset" value="0" min="0"></div>
+  </div>
+  <div class="form-group"><label>Layout</label>
+    <select id="f_rssl">
+      <option value="0">Full content</option>
+      <option value="1">Heading + Excerpt</option>
+      <option value="2">Heading + Excerpt + Image</option>
+    </select></div>
+`; }
+
+function tplEvvnt() { return `
+  <div class="form-group"><label>Call to Action</label>
+    <input type="text" id="f_cta" value="Get Tickets"></div>
+  <div class="grid-2">
+    <div class="form-group"><label>Button Background</label>
+      <div class="color-row">
+        <input type="color" id="f_ebg" value="#1D2D4D" oninput="syncPicker('f_ebg')">
+        <input type="text" id="f_ebg_t" value="#1D2D4D" oninput="syncText('f_ebg')">
+      </div></div>
+    <div class="form-group"><label>Button Text Color</label>
+      <div class="color-row">
+        <input type="color" id="f_ec" value="#FFFFFF" oninput="syncPicker('f_ec')">
+        <input type="text" id="f_ec_t" value="#FFFFFF" oninput="syncText('f_ec')">
+      </div></div>
+  </div>
+  <div class="form-group"><label>Layout</label>
+    <select id="f_elayout"><option value="0">One Column</option><option value="1">Two Columns</option></select></div>
+  <div class="grid-2">
+    <div class="form-group"><label>Days to Display</label>
+      <input type="number" id="f_days" value="0" min="0"></div>
+    <div class="form-group"><label>Count Per Day</label>
+      <input type="number" id="f_cpd" value="0" min="0"></div>
+  </div>
+  <div class="form-group"><label>Show Elements</label>
+    <div class="grid-2">
+      <div class="chk"><input type="checkbox" id="f_hbtn" checked><label for="f_hbtn">Button</label></div>
+      <div class="chk"><input type="checkbox" id="f_hdesc" checked><label for="f_hdesc">Description</label></div>
+      <div class="chk"><input type="checkbox" id="f_himg" checked><label for="f_himg">Image</label></div>
+      <div class="chk"><input type="checkbox" id="f_hprice" checked><label for="f_hprice">Price</label></div>
+      <div class="chk"><input type="checkbox" id="f_hvenue" checked><label for="f_hvenue">Venue</label></div>
+      <div class="chk"><input type="checkbox" id="f_hcurdate" checked><label for="f_hcurdate">Include Today</label></div>
+    </div>
+  </div>
+`; }
+
+function tplNews() { return `
+  <div class="form-group"><label>Link URL</label>
+    <input type="url" id="f_link" value=""></div>
+  <div class="form-group"><label>Image URL</label>
+    <input type="url" id="f_image" value=""></div>
+`; }
+
+function tplRevContent() { return `
+  <div class="form-group"><label>Widget ID</label>
+    <input type="text" id="f_wid" value="12345"></div>
+  <div class="form-group"><label>Placement ID</label>
+    <input type="text" id="f_pid" value="67890"></div>
+`; }
+
+function tplIterable() { return `
+  <div class="form-group"><label>Template ID</label>
+    <input type="text" id="f_tid" value="demo"></div>
+`; }
+
+function tplGoogleDocs() { return `
+  <p style="color:#64748b;font-size:11px;padding:4px 0">
+    No additional settings — the document source is configured in the platform.
+  </p>
+`; }
+
+function tplViewInBrowser() { return `
+  <div class="form-group"><label>Link Text</label>
+    <input type="text" id="f_lt" value="View in browser" maxlength="150"></div>
+  <div class="form-group"><label>Alignment</label>
+    <select id="f_align"><option value="left">Left</option><option value="right">Right</option></select></div>
+`; }
+
+function tplAiText() { return `
+  <div class="form-group"><label>AI Prompt</label>
+    <textarea id="f_prompt" maxlength="1000" style="min-height:72px">Write a 3-sentence summary of today's top news.</textarea>
+    <small>Max 1000 characters · Max 7 AI Text blocks per letter</small></div>
+  <div class="form-group"><label>Fallback Text</label>
+    <input type="text" id="f_fbt" value="Content unavailable."></div>
+  <div class="chk"><input type="checkbox" id="f_usefbt"><label for="f_usefbt">Use fallback text</label></div>
+`; }
+
+function tplAudio() { return `
+  <div class="form-group"><label>Audio URL</label>
+    <input type="url" id="f_aurl" value="https://example.com/episode.mp3"></div>
+  <div class="form-group"><label>Title</label>
+    <input type="text" id="f_atitle" value="Episode 42: The Answer"></div>
+  <div class="form-group"><label>Subtitle</label>
+    <input type="text" id="f_asub" value="My Podcast Show"></div>
+  <div class="form-group"><label>Border Radius</label>
+    <input type="number" id="f_arad" value="8" min="0"></div>
+`; }
+
+function tplLayout() { return `
+  <div class="form-group"><label>Layout Type</label>
+    <select id="f_lt">
+      <option value="1">1 – Image + Text</option>
+      <option value="2">2 – Text + Image</option>
+      <option value="3">3 – Image + Image</option>
+      <option value="4">4 – Text + Text</option>
+      <option value="5">5 – Image top, Paragraph bottom</option>
+      <option value="7">7 – Image + Text (stacked)</option>
+      <option value="9">9 – Product Showcase</option>
+    </select></div>
+  <div class="chk"><input type="checkbox" id="f_stacked"><label for="f_stacked">Stack on mobile</label></div>
+  <small style="padding:2px 0">Child block content can be customized by editing the output JSON.</small>
+`; }
+
+function tpl2Col() { return `
+  <div class="form-group"><label>Left Column Text</label>
+    <textarea id="f_left">Left column content</textarea></div>
+  <div class="form-group"><label>Right Column Text</label>
+    <textarea id="f_right">Right column content</textarea></div>
+  <div class="chk"><input type="checkbox" id="f_stacked" checked><label for="f_stacked">Stack on mobile</label></div>
+`; }
+
+function tplFooter() { return `
+  <div class="form-group"><label>Footer Text</label>
+    <textarea id="f_text">Unsubscribe | Manage preferences</textarea></div>
+  <div class="form-group"><label>Alignment</label>
+    <select id="f_align"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div>
+`; }
+
+// ─── Type → template map ──────────────────────────────────────────────────────
+const TEMPLATES = {
+  paragraph: tplParagraph,
+  heading: tplHeading,
+  blockquote: tplBlockquote,
+  button: tplButton,
+  image: tplImage,
+  logo: tplLogo,
+  divider: tplDivider,
+  html: tplHtml,
+  youtube: tplYoutube,
+  poll: tplPoll,
+  curation: () => tplContentBlock('curation'),
+  newrss: () => tplContentBlock('newrss'),
+  wordpress: () => tplContentBlock('wordpress'),
+  dynamic: tplDynamic,
+  promotion: tplPromotion,
+  newpromotion: tplNewPromotion,
+  profile: tplProfile,
+  share: tplShare,
+  rss: tplRss,
+  evvnt: tplEvvnt,
+  news: tplNews,
+  revContent: tplRevContent,
+  iterable: tplIterable,
+  googleDocs: tplGoogleDocs,
+  view_in_browser: tplViewInBrowser,
+  aiText: tplAiText,
+  audio: tplAudio,
+  layout: tplLayout,
+  'nested-layout-2-column': tpl2Col,
+  footer: tplFooter,
+};
+
+const TYPE_LABELS = {
+  paragraph: 'Paragraph', heading: 'Heading', blockquote: 'Blockquote',
+  button: 'Button', image: 'Image', logo: 'Logo', divider: 'Divider',
+  html: 'HTML', youtube: 'YouTube', poll: 'Poll', curation: 'Curation',
+  newrss: 'New RSS', wordpress: 'WordPress', dynamic: 'Dynamic (URL)',
+  promotion: 'Promotion (Legacy)', newpromotion: 'New Promotion',
+  profile: 'Profile', share: 'Share', rss: 'RSS (Legacy)', evvnt: 'Evvnt Events',
+  news: 'News', revContent: 'RevContent', iterable: 'Iterable',
+  googleDocs: 'Google Docs', view_in_browser: 'View in Browser',
+  aiText: 'AI Text', audio: 'Audio', layout: 'Layout',
+  'nested-layout-2-column': '2-Column Layout', footer: 'Footer',
+};
+
+function onTypeChange() {
+  const type = document.getElementById('blockType').value;
+  const container = document.getElementById('specific');
+  const tpl = TEMPLATES[type];
+  const label = TYPE_LABELS[type] || type;
+
+  container.innerHTML = tpl
+    ? `<div class="section">
+         <div class="section-hd">${label} Settings</div>
+         <div class="section-bd">${tpl()}</div>
+       </div>`
+    : '';
+
+  if (type === 'poll') { pollOpts = ['Option 1', 'Option 2']; renderPollOpts(); }
+
+  // Sensible default font sizes per type
+  const fsSizes = { heading: 36, button: 16, evvnt: 24 };
+  const lhVals  = { heading: 1.2, button: 1 };
+  document.getElementById('c_fs').value = fsSizes[type] || 14;
+  document.getElementById('c_lh').value = lhVals[type] || 1.4;
+}
+
+// ─── Build helpers ────────────────────────────────────────────────────────────
+function uid() { return Math.random().toString(36).substr(2, 9) + Math.random().toString(36).substr(2, 9); }
+
+function textSettings(size) {
+  return { font: 'Arial', fontFallback: 'Arial', color: '#020617', fontSize: size || 14, alignment: 'left', lineHeight: 1.4 };
+}
+
+function readMoreBtn() {
+  return {
+    align: 'left', backgroundColor: '#1D2D4D', color: '#FFFFFF', link: '',
+    value: 'Read more',
+    borderRadius: { topLeft: 6, topRight: 6, bottomLeft: 6, bottomRight: 6 },
+    innerPadding: { top: 10, right: 12, bottom: 10, left: 12 },
+    fontFamily: 'Arial', fontFallback: 'Arial', fontSize: 14, lineHeight: 1.4
+  };
+}
+
+function paraChild(id, text) {
+  return {
+    type: 'paragraph', uniqueId: id, columnWidth: 100,
+    blockModel: { align: 'left' },
+    delta: { ops: [{ insert: text + '\n' }] },
+    paddingTop: 10, paddingRight: 25, paddingBottom: 10, paddingLeft: 25,
+    backgroundColor: '#FFFFFF', isLocked: false, tags: [], blocks: []
+  };
+}
+
+function imgChild(id) {
+  return {
+    type: 'image', uniqueId: id, columnWidth: 50,
+    blockModel: {
+      align: 'left', alt: '', src: 'https://ucarecdn.com/placeholder.jpg',
+      link: '', width: 600, hasOriginalImageWidth: false,
+      imageSmartCrop: 'original', originalSrc: '',
+      borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 }
+    },
+    paddingTop: 10, paddingRight: 25, paddingBottom: 10, paddingLeft: 25,
+    backgroundColor: '#FFFFFF', isLocked: false, tags: [], blocks: []
+  };
+}
+
+function layoutChildren(lt) {
+  const a = uid(), b = uid();
+  const img = imgChild(a);
+  const txt = { ...paraChild(b, 'Start writing...'), columnWidth: 50 };
+  if (lt === 1) return [img, txt];
+  if (lt === 2) return [txt, img];
+  if (lt === 3) return [img, { ...imgChild(b) }];
+  if (lt === 4) return [{ ...paraChild(a, 'Left column...'), columnWidth: 50 }, { ...paraChild(b, 'Right column...'), columnWidth: 50 }];
+  return [img, txt];
+}
+
+// ─── Build block JSON ─────────────────────────────────────────────────────────
+function buildBlock() {
+  const type = document.getElementById('blockType').value;
+
+  const base = {
+    type,
+    uniqueId: uid(),
+    blocks: [],
+    blockModel: {},
+    backgroundColor: colorVal('c_bg', '#FFFFFF'),
+    bgImage: '',
+    bgImageFit: 'fill',
+    borderColor: colorVal('c_bc', 'transparent'),
+    borderStyle: v('c_bs', 'solid'),
+    borderThickness: { top: i('c_bt',0), right: i('c_br',0), bottom: i('c_bb',0), left: i('c_bl',0) },
+    borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 },
+    columnWidth: 100,
+    defaultFont: v('c_font', 'Arial'),
+    fontFallback: v('c_fontfb', 'Arial'),
+    fontSize: n('c_fs', 14),
+    lineHeight: n('c_lh', 1.4),
+    listLineHeight: null,
+    layoutType: 0,
+    paddingTop: i('c_pt', 10),
+    paddingRight: i('c_pr', 25),
+    paddingBottom: i('c_pb', 10),
+    paddingLeft: i('c_pl', 25),
+    mobilePadding: { top: i('c_pt',10), right: i('c_pr',25), bottom: i('c_pb',10), left: i('c_pl',25) },
+    useMobilePadding: false,
+    isLocked: false,
+    isLayoutStacked: false,
+    extendBgColor: false,
+    tags: [],
+    targetable: false,
+    textColor: colorVal('c_tc', '#020617'),
+    permissions: { allowClone: true, allowDelete: true }
+  };
+
+  switch (type) {
+    case 'paragraph': {
+      base.blockModel = { align: v('f_align','left') };
+      base.delta = { ops: [{ insert: v('f_text','Start writing...') + '\n' }] };
+      break;
+    }
+    case 'heading': {
+      base.blockModel = { headingType: v('f_ht','h1'), align: v('f_align','left') };
+      base.delta = { ops: [{ insert: v('f_text','Start writing...') + '\n' }] };
+      break;
+    }
+    case 'blockquote': {
+      base.blockModel = { borderColor: colorVal('f_bqc', '#1D2D4D') };
+      base.delta = { ops: [{ insert: v('f_text','A compelling quote goes here.') + '\n' }] };
+      break;
+    }
+    case 'button': {
+      const r = i('f_btr', 6);
+      base.blockModel = {
+        align: v('f_align','left'),
+        backgroundColor: colorVal('f_btnbg','#1D2D4D'),
+        color: colorVal('f_btnc','#FFFFFF'),
+        link: v('f_link','https://example.com'),
+        value: v('f_val','Click Here'),
+        borderRadius: { topLeft: r, topRight: r, bottomLeft: r, bottomRight: r },
+        innerPadding: { top: 10, right: 12, bottom: 10, left: 12 }
+      };
+      break;
+    }
+    case 'image': {
+      base.blockModel = {
+        align: v('f_align','left'), alt: v('f_alt',''),
+        borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 },
+        hasOriginalImageWidth: false,
+        imageSmartCrop: v('f_crop','original'),
+        link: v('f_link',''), originalSrc: '',
+        src: v('f_src','https://ucarecdn.com/placeholder.jpg'),
+        width: i('f_width', 600)
+      };
+      break;
+    }
+    case 'logo': {
+      base.blockModel = {
+        align: v('f_align','left'), alt: v('f_alt','logo for My Newsletter'),
+        borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 },
+        hasOriginalImageWidth: false, imageSmartCrop: 'original',
+        link: v('f_link',''), originalSrc: '',
+        src: v('f_src','https://ucarecdn.com/logo.png'),
+        width: i('f_width', 200)
+      };
+      break;
+    }
+    case 'divider': {
+      base.blockModel = { color: colorVal('f_dc','#CCCCCC'), style: v('f_ds','solid'), width: i('f_dw',1) };
+      break;
+    }
+    case 'html': {
+      base.blockModel = { isValid: false, html: v('f_html','<p>Custom HTML goes here</p>'), isRelaxed: chk('f_relaxed') };
+      break;
+    }
+    case 'youtube': {
+      base.blockModel = {
+        align: v('f_align','left'), alt: v('f_alt',''),
+        borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 },
+        hasPlayIcon: chk('f_play'), link: v('f_link',''),
+        src: v('f_src',''), hasOriginalImageWidth: false, width: i('f_width',600)
+      };
+      break;
+    }
+    case 'poll': {
+      base.blockModel = {
+        id: null,
+        title: v('f_ptitle','Weekly Poll'),
+        questionText: v('f_qtext','What is your favorite color?'),
+        pollType: i('f_ptype', 1), originType: 3,
+        showResultsOnResponsePage: chk('f_showres'),
+        confirmationMessage: v('f_confirm','Thanks for voting!'),
+        confirmationMessageCorrect: '', confirmationMessageIncorrect: '',
+        options: pollOpts.map((txt, idx) => ({
+          id: 'opt' + (idx+1), optionText: txt, optionOrder: idx,
+          isCorrect: false, link: '', pollId: null, responseCounter: 0
+        })),
+        isAnonymous: chk('f_anon'), createdAt: null,
+        buttonAlignment: v('f_btalign','full width'),
+        buttonBackgroundColor: colorVal('f_pbg','#1D2D4D'),
+        buttonBorderRadius: { topLeft: 3, topRight: 3, bottomLeft: 3, bottomRight: 3 },
+        buttonTextColor: colorVal('f_pc','#FFFFFF'),
+        buttonSpacing: 8,
+        buttonInnerPadding: { top: 10, right: 12, bottom: 10, left: 12 },
+        buttonWidth: 100
+      };
+      break;
+    }
+    case 'curation':
+    case 'newrss':
+    case 'wordpress': {
+      const cm = {
+        sources: [], tags: [], excludeTags: [], tagOperator: 0,
+        types: [], feeds: [], keyword: v('f_kw',''), dateCurated: [],
+        daysToDisplay: 0, itemCount: i('f_ic',1), itemOffset: i('f_io',0),
+        useExactDates: false,
+        hasTitle: chk('f_hTitle',true), hasExcerpt: chk('f_hExcerpt',true),
+        hasImage: chk('f_hImage',true), hasPublishedDate: chk('f_hDate'),
+        hasSource: chk('f_hSource'), hasAuthor: chk('f_hAuthor'),
+        title: '', author: '', excerpt: '', siteName: '',
+        publicationDate: '', image: '', imageOriginalUrl: '', imageAlt: '',
+        imageCaption: { ops: [{ insert: '\n' }] }, hasImageCaption: chk('f_hCaption',true),
+        link: '',
+        titleSettings: textSettings(), authorSettings: textSettings(),
+        excerptSettings: textSettings(), siteNameSettings: textSettings(),
+        publicationDateSettings: textSettings(), imageCaptionSettings: textSettings(),
+        ctaButtonSettings: textSettings(),
+        gap: i('f_gap',50), imageColumnWidth: 50, textColumnWidth: 50,
+        imageSettings: { imageSmartCrop: 'original' },
+        useButtonForReadMore: false, readMoreButtonSettings: readMoreBtn(),
+      };
+      if (type === 'curation') cm.borderRadius = { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 };
+      base.blockModel = cm;
+      base.layoutType = 1;
+      break;
+    }
+    case 'dynamic': {
+      const displayed = [];
+      if (chk('f_hTitle',true)) displayed.push('title');
+      if (chk('f_hExcerpt',true)) displayed.push('excerpt');
+      if (chk('f_hAuthor')) displayed.push('author');
+      if (chk('f_hSource')) displayed.push('siteName');
+      if (chk('f_hDate')) displayed.push('publicationDate');
+      base.blockModel = {
+        link: v('f_link','https://example.com/article'),
+        title: '', author: '', excerpt: '', siteName: '',
+        publicationDate: '', image: '', imageOriginalUrl: '', imageAlt: '',
+        imageCaption: '', hasImageCaption: true,
+        hasTitle: chk('f_hTitle',true), hasExcerpt: chk('f_hExcerpt',true),
+        hasImage: chk('f_hImage',true), hasPublishedDate: chk('f_hDate'),
+        hasSource: chk('f_hSource'), hasAuthor: chk('f_hAuthor'),
+        titleSettings: textSettings(), authorSettings: textSettings(),
+        excerptSettings: textSettings(), siteNameSettings: textSettings(),
+        publicationDateSettings: textSettings(), imageCaptionSettings: textSettings(),
+        ctaButtonSettings: textSettings(),
+        displayOrder: displayed.length ? displayed : ['title','excerpt'],
+        gap: i('f_gap',50), imageColumnWidth: 50, textColumnWidth: 50,
+        imageSettings: { imageSmartCrop: 'original' },
+        useButtonForReadMore: false, readMoreButtonSettings: readMoreBtn(),
+        borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 }
+      };
+      base.layoutType = 1;
+      break;
+    }
+    case 'promotion': {
+      base.blockModel = {
+        adTypeId: 0, title: v('f_title',''), disclaimer: v('f_disc','Sponsored'),
+        displayDisclaimer: chk('f_showDisc',true),
+        headingSettings: textSettings(18), copySettings: textSettings(14), disclaimerSettings: textSettings(12)
+      };
+      Object.assign(base, { backgroundColor: '#F9F9F9', borderColor: '#CCCCCC', borderStyle: 'solid',
+        borderThickness: { top:1, right:1, bottom:1, left:1 }, paddingTop: 20, paddingBottom: 20 });
+      break;
+    }
+    case 'newpromotion': {
+      base.blockModel = {
+        zone: i('f_zone',0), twoColumnPromo: chk('f_twocol'),
+        stackOnMobile: chk('f_stack',true),
+        title: v('f_title','Promotion placeholder'), disclaimer: v('f_disc','Sponsored'),
+        displayDisclaimer: chk('f_showDisc',true),
+        headingSettings: textSettings(18), copySettings: textSettings(14), disclaimerSettings: textSettings(12)
+      };
+      Object.assign(base, { backgroundColor: '#F9F9F9', borderColor: '#CCCCCC', borderStyle: 'solid',
+        borderThickness: { top:1, right:1, bottom:1, left:1 }, paddingTop: 20, paddingBottom: 20 });
+      break;
+    }
+    case 'profile': {
+      base.blockModel = {
+        models: [], align: v('f_align','center'),
+        color: v('f_color','origin'), display: i('f_disp',0), gap: i('f_gap',16)
+      };
+      break;
+    }
+    case 'share': {
+      base.blockModel = {
+        models: [], align: v('f_align','center'),
+        color: v('f_color','origin'), custom: chk('f_custom'),
+        display: i('f_disp',0), gap: i('f_gap',16)
+      };
+      break;
+    }
+    case 'rss': {
+      base.blockModel = {
+        count: i('f_count',1), link: v('f_link','https://example.com/rss.xml'),
+        layoutType: i('f_rssl',0), offset: i('f_offset',0)
+      };
+      break;
+    }
+    case 'evvnt': {
+      base.blockModel = {
+        backgroundColor: colorVal('f_ebg','#1D2D4D'), buttonFontSize: 14,
+        color: colorVal('f_ec','#FFFFFF'), countPerDay: i('f_cpd',0),
+        categories: [], callToAction: v('f_cta','Get Tickets'),
+        daysToDisplay: i('f_days',0), dateFontSize: 14, descriptionFontSize: 14,
+        events: [],
+        hasButton: chk('f_hbtn',true), hasDescription: chk('f_hdesc',true),
+        hasImage: chk('f_himg',true), hasPrice: chk('f_hprice',true),
+        hasVenue: chk('f_hvenue',true), includeCurrentDate: chk('f_hcurdate',true),
+        layout: i('f_elayout',0), margin: 15, priceAndVenueFontSize: 14
+      };
+      base.fontSize = 24;
+      break;
+    }
+    case 'news': {
+      base.blockModel = { delta: null, image: v('f_image',''), link: v('f_link','') };
+      break;
+    }
+    case 'revContent': {
+      base.blockModel = { widgetId: v('f_wid','12345'), placementId: v('f_pid','67890') };
+      break;
+    }
+    case 'iterable': {
+      base.blockModel = { templateId: v('f_tid','demo') };
+      break;
+    }
+    case 'googleDocs': {
+      base.blockModel = null;
+      break;
+    }
+    case 'view_in_browser': {
+      base.blockModel = { linkText: v('f_lt','View in browser'), align: v('f_align','left'), linkTo: null, isValid: true };
+      break;
+    }
+    case 'aiText': {
+      base.blockModel = {
+        prompt: v('f_prompt','Write a 3-sentence summary of today\'s top news.'),
+        fallbackText: v('f_fbt','Content unavailable.'),
+        useFallbackText: chk('f_usefbt')
+      };
+      break;
+    }
+    case 'audio': {
+      const r = i('f_arad',8);
+      base.blockModel = {
+        audioUrl: v('f_aurl','https://example.com/episode.mp3'),
+        title: v('f_atitle','Episode 42: The Answer'),
+        subtitle: v('f_asub','My Podcast Show'),
+        titleSettings: textSettings(), subtitleSettings: textSettings(),
+        borderRadius: { topLeft: r, topRight: r, bottomLeft: r, bottomRight: r }
+      };
+      break;
+    }
+    case 'layout': {
+      const lt = i('f_lt',1);
+      base.layoutType = lt;
+      base.isLayoutStacked = chk('f_stacked');
+      base.hasLayoutCtaButton = lt === 9;
+      if (lt === 9) { base.ctaButtonBlocksCache = []; base.columnCount = 4; }
+      base.blockModel = null;
+      base.blocks = layoutChildren(lt);
+      base.paddingTop = 0; base.paddingRight = 0; base.paddingBottom = 0; base.paddingLeft = 0;
+      break;
+    }
+    case 'nested-layout-2-column': {
+      base.isLayoutStacked = chk('f_stacked',true);
+      base.blockModel = null;
+      base.blocks = [
+        [paraChild(uid(), v('f_left','Left column content'))],
+        [paraChild(uid(), v('f_right','Right column content'))]
+      ];
+      break;
+    }
+    case 'footer': {
+      base.blockModel = { align: v('f_align','left') };
+      base.delta = { ops: [{ insert: v('f_text','Unsubscribe | Manage preferences') + '\n' }] };
+      break;
+    }
+  }
+
+  return base;
+}
+
+function createBlock() {
+  const block = buildBlock();
+  parent.postMessage({ pluginMessage: { type: 'create-block', blockData: block } }, '*');
+}
+
+function cancel() {
+  parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*');
+}
+
+// Init
+onTypeChange();
+</script>
+</body>
+</html>
