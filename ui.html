@@ -114,6 +114,24 @@
   .btn-primary:hover { background: #4f46e5; }
   .btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
   .btn-secondary:hover { background: #e2e8f0; }
+
+  /* Block defaults tabs */
+  .def-tabs {
+    display: flex;
+    margin-bottom: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .def-tab {
+    flex: 1; padding: 4px 0; font-size: 10px; font-weight: 600;
+    border: none; border-right: 1px solid #e2e8f0;
+    background: #fff; cursor: pointer; color: #64748b;
+    transition: background 0.12s, color 0.12s; text-align: center;
+  }
+  .def-tab:last-child { border-right: none; }
+  .def-tab.active { background: #6366f1; color: #fff; }
+  .def-tab:hover:not(.active) { background: #f1f5f9; }
 </style>
 </head>
 <body>
@@ -123,8 +141,8 @@
 
   <!-- Output mode toggle -->
   <div class="toggle-row">
-    <button class="toggle-btn active" id="mode-json" onclick="setMode('json')">{ } JSON</button>
-    <button class="toggle-btn" id="mode-visual" onclick="setMode('visual')">◈ Visual Preview</button>
+    <button class="toggle-btn active" id="mode-visual" onclick="setMode('visual')">◈ Visual Preview</button>
+    <button class="toggle-btn" id="mode-json" onclick="setMode('json')">{ } JSON</button>
   </div>
 
   <!-- Block type selector -->
@@ -178,6 +196,25 @@
         <option value="view_in_browser">View in Browser</option>
       </optgroup>
     </select>
+  </div>
+
+  <!-- Block Defaults (collapsible) -->
+  <div class="section">
+    <div class="section-hd" onclick="toggleSection('defs')">
+      Block Defaults <span id="defs-icon">▶</span>
+    </div>
+    <div class="section-bd hidden" id="defs-bd">
+      <div class="def-tabs">
+        <button class="def-tab active" id="dtab-paragraph" onclick="showDefsTab('paragraph')">Para</button>
+        <button class="def-tab" id="dtab-h1" onclick="showDefsTab('h1')">H1</button>
+        <button class="def-tab" id="dtab-h2" onclick="showDefsTab('h2')">H2</button>
+        <button class="def-tab" id="dtab-h3" onclick="showDefsTab('h3')">H3</button>
+        <button class="def-tab" id="dtab-h4" onclick="showDefsTab('h4')">H4</button>
+        <button class="def-tab" id="dtab-h5" onclick="showDefsTab('h5')">H5</button>
+        <button class="def-tab" id="dtab-h6" onclick="showDefsTab('h6')">H6</button>
+      </div>
+      <div id="dpanel"></div>
+    </div>
   </div>
 
   <!-- Common settings (collapsible) -->
@@ -270,7 +307,7 @@
 
 <script>
 // ─── Output mode ─────────────────────────────────────────────────────────────
-let outputMode = 'json';
+let outputMode = 'visual';
 function setMode(mode) {
   outputMode = mode;
   document.getElementById('mode-json').classList.toggle('active', mode === 'json');
@@ -314,6 +351,140 @@ function chk(id, fb) {
   return el ? el.checked : (fb !== undefined ? fb : false);
 }
 
+// ─── Block defaults ───────────────────────────────────────────────────────────
+function getInitialDefaults() {
+  const base = (fs, lh) => ({
+    fontSize: fs, lineHeight: lh,
+    textColor: '#020617', backgroundColor: '#FFFFFF',
+    paddingTop: 10, paddingRight: 25, paddingBottom: 10, paddingLeft: 25,
+    font: 'Arial', fontFallback: 'Arial'
+  });
+  return {
+    paragraph: base(14, 1.4),
+    heading: {
+      h1: base(36, 1.2), h2: base(30, 1.2), h3: base(24, 1.2),
+      h4: base(20, 1.2), h5: base(18, 1.2), h6: base(16, 1.2)
+    }
+  };
+}
+
+let blockDefaults = (() => {
+  try {
+    const s = localStorage.getItem('lh_block_defaults');
+    if (s) {
+      const parsed = JSON.parse(s);
+      // Merge with initial to fill any missing keys from old saves
+      const init = getInitialDefaults();
+      parsed.paragraph = Object.assign({}, init.paragraph, parsed.paragraph);
+      for (const lv of ['h1','h2','h3','h4','h5','h6']) {
+        parsed.heading[lv] = Object.assign({}, init.heading[lv], (parsed.heading || {})[lv]);
+      }
+      return parsed;
+    }
+  } catch(e) {}
+  return getInitialDefaults();
+})();
+
+function saveDefaults() {
+  try { localStorage.setItem('lh_block_defaults', JSON.stringify(blockDefaults)); } catch(e) {}
+}
+
+function getDefsTarget(tab) {
+  return tab === 'paragraph' ? blockDefaults.paragraph : blockDefaults.heading[tab];
+}
+
+let activeDefsTab = 'paragraph';
+
+function renderDefsPanel(tab) {
+  const d = getDefsTarget(tab);
+  const p = 'dp' + tab;
+  return `
+    <div class="grid-2">
+      <div class="form-group"><label>Font Size</label>
+        <input type="number" id="${p}fs" value="${d.fontSize}" min="1" oninput="updateDefNum('${tab}','fontSize',this.value)"></div>
+      <div class="form-group"><label>Line Height</label>
+        <input type="number" id="${p}lh" value="${d.lineHeight}" min="0.5" step="0.1" oninput="updateDefNum('${tab}','lineHeight',this.value)"></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>Text Color</label>
+        <div class="color-row">
+          <input type="color" id="${p}tc" value="${d.textColor}" oninput="syncPicker('${p}tc');updateDef('${tab}','textColor',this.value)">
+          <input type="text" id="${p}tc_t" value="${d.textColor}" oninput="syncText('${p}tc');if(/^#[0-9A-Fa-f]{6}$/.test(this.value))updateDef('${tab}','textColor',this.value)">
+        </div></div>
+      <div class="form-group"><label>Background</label>
+        <div class="color-row">
+          <input type="color" id="${p}bg" value="${d.backgroundColor}" oninput="syncPicker('${p}bg');updateDef('${tab}','backgroundColor',this.value)">
+          <input type="text" id="${p}bg_t" value="${d.backgroundColor}" oninput="syncText('${p}bg');if(/^#[0-9A-Fa-f]{6}$/.test(this.value))updateDef('${tab}','backgroundColor',this.value)">
+        </div></div>
+    </div>
+    <div class="form-group"><label>Padding</label>
+      <div class="grid-4">
+        <div><input type="number" id="${p}pt" value="${d.paddingTop}" min="0" oninput="updateDefInt('${tab}','paddingTop',this.value)"><small>Top</small></div>
+        <div><input type="number" id="${p}pr" value="${d.paddingRight}" min="0" oninput="updateDefInt('${tab}','paddingRight',this.value)"><small>Right</small></div>
+        <div><input type="number" id="${p}pb" value="${d.paddingBottom}" min="0" oninput="updateDefInt('${tab}','paddingBottom',this.value)"><small>Bottom</small></div>
+        <div><input type="number" id="${p}pl" value="${d.paddingLeft}" min="0" oninput="updateDefInt('${tab}','paddingLeft',this.value)"><small>Left</small></div>
+      </div></div>
+    <div class="grid-2">
+      <div class="form-group"><label>Font</label>
+        <input type="text" id="${p}font" value="${d.font}" oninput="updateDef('${tab}','font',this.value)"></div>
+      <div class="form-group"><label>Fallback</label>
+        <input type="text" id="${p}fb" value="${d.fontFallback}" oninput="updateDef('${tab}','fontFallback',this.value)"></div>
+    </div>
+  `;
+}
+
+function updateDef(tab, key, val) {
+  getDefsTarget(tab)[key] = val;
+  saveDefaults();
+  // Live-sync to Common Settings if the current block matches
+  const type = document.getElementById('blockType').value;
+  if (tab === 'paragraph' && type === 'paragraph') {
+    applyDefaults('paragraph');
+  } else if (tab !== 'paragraph' && type === 'heading') {
+    const htEl = document.getElementById('f_ht');
+    if (htEl && htEl.value === tab) applyDefaults('heading', tab);
+  }
+}
+
+function updateDefNum(tab, key, val) {
+  const n = parseFloat(val);
+  if (!isNaN(n)) updateDef(tab, key, n);
+}
+
+function updateDefInt(tab, key, val) {
+  const n = parseInt(val);
+  if (!isNaN(n)) updateDef(tab, key, n);
+}
+
+function showDefsTab(tab) {
+  activeDefsTab = tab;
+  ['paragraph','h1','h2','h3','h4','h5','h6'].forEach(t => {
+    const btn = document.getElementById('dtab-' + t);
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  const panel = document.getElementById('dpanel');
+  if (panel) panel.innerHTML = renderDefsPanel(tab);
+}
+
+function applyDefaults(type, htLevel) {
+  let d;
+  if (type === 'paragraph') {
+    d = blockDefaults.paragraph;
+  } else if (type === 'heading') {
+    d = blockDefaults.heading[htLevel || 'h1'];
+  } else {
+    return;
+  }
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  set('c_fs', d.fontSize);
+  set('c_lh', d.lineHeight);
+  set('c_tc', d.textColor);   set('c_tc_t', d.textColor);
+  set('c_bg', d.backgroundColor); set('c_bg_t', d.backgroundColor);
+  set('c_pt', d.paddingTop);  set('c_pr', d.paddingRight);
+  set('c_pb', d.paddingBottom); set('c_pl', d.paddingLeft);
+  set('c_font', d.font);      set('c_fontfb', d.fontFallback);
+}
+
 // ─── Poll options state ───────────────────────────────────────────────────────
 let pollOpts = ['Option 1', 'Option 2'];
 
@@ -341,7 +512,7 @@ function tplParagraph() { return `
 
 function tplHeading() { return `
   <div class="form-group"><label>Heading Level</label>
-    <select id="f_ht"><option value="h1">H1</option><option value="h2">H2</option><option value="h3">H3</option><option value="h4">H4</option><option value="h5">H5</option><option value="h6">H6</option></select></div>
+    <select id="f_ht" onchange="applyDefaults('heading', this.value)"><option value="h1">H1</option><option value="h2">H2</option><option value="h3">H3</option><option value="h4">H4</option><option value="h5">H5</option><option value="h6">H6</option></select></div>
   <div class="form-group"><label>Text</label>
     <textarea id="f_text">Start writing...</textarea></div>
   <div class="form-group"><label>Alignment</label>
@@ -779,11 +950,15 @@ function onTypeChange() {
 
   if (type === 'poll') { pollOpts = ['Option 1', 'Option 2']; renderPollOpts(); }
 
-  // Sensible default font sizes per type
-  const fsSizes = { heading: 36, button: 16, evvnt: 24 };
-  const lhVals  = { heading: 1.2, button: 1 };
-  document.getElementById('c_fs').value = fsSizes[type] || 14;
-  document.getElementById('c_lh').value = lhVals[type] || 1.4;
+  // Apply stored defaults for paragraph/heading; hardcoded fallbacks for other types
+  if (type === 'paragraph' || type === 'heading') {
+    applyDefaults(type);
+  } else {
+    const fsSizes = { button: 16, evvnt: 24 };
+    const lhVals  = { button: 1 };
+    document.getElementById('c_fs').value = fsSizes[type] || 14;
+    document.getElementById('c_lh').value = lhVals[type] || 1.4;
+  }
 }
 
 // ─── Build helpers ────────────────────────────────────────────────────────────
@@ -1163,6 +1338,7 @@ function cancel() {
 }
 
 // Init
+showDefsTab('paragraph');
 onTypeChange();
 </script>
 </body>
