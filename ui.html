@@ -49,6 +49,16 @@
   .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px; }
   small { font-size: 10px; color: #94a3b8; display: block; margin-top: 2px; }
 
+  /* Output mode toggle */
+  .toggle-row { display: flex; gap: 0; margin-bottom: 10px; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; background: #fff; }
+  .toggle-btn {
+    flex: 1; padding: 6px 0; font-size: 11px; font-weight: 600;
+    border: none; background: none; cursor: pointer; color: #64748b;
+    transition: background 0.12s, color 0.12s; text-align: center;
+  }
+  .toggle-btn.active { background: #6366f1; color: #fff; }
+  .toggle-btn:first-child { border-right: 1px solid #e2e8f0; }
+
   /* Collapsible section */
   .section {
     background: #fff; border: 1px solid #e2e8f0;
@@ -110,6 +120,12 @@
 
 <div class="scroll-area">
   <h1>Newsletter Block Builder</h1>
+
+  <!-- Output mode toggle -->
+  <div class="toggle-row">
+    <button class="toggle-btn active" id="mode-json" onclick="setMode('json')">{ } JSON</button>
+    <button class="toggle-btn" id="mode-visual" onclick="setMode('visual')">◈ Visual Preview</button>
+  </div>
 
   <!-- Block type selector -->
   <div class="form-group">
@@ -253,6 +269,14 @@
 </div>
 
 <script>
+// ─── Output mode ─────────────────────────────────────────────────────────────
+let outputMode = 'json';
+function setMode(mode) {
+  outputMode = mode;
+  document.getElementById('mode-json').classList.toggle('active', mode === 'json');
+  document.getElementById('mode-visual').classList.toggle('active', mode === 'visual');
+}
+
 // ─── Color helpers ────────────────────────────────────────────────────────────
 function syncPicker(id) {
   const t = document.getElementById(id + '_t');
@@ -1131,7 +1155,7 @@ function buildBlock() {
 
 function createBlock() {
   const block = buildBlock();
-  parent.postMessage({ pluginMessage: { type: 'create-block', blockData: block } }, '*');
+  parent.postMessage({ pluginMessage: { type: 'create-block', blockData: block, outputMode } }, '*');
 }
 
 function cancel() {
