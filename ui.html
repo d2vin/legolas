@@ -691,14 +691,22 @@ async function handleExportedSelection(items) {
       metadata: item.metadata,
     }));
 
+    // Debug: log metadata and download each image so you can inspect what's being sent
+    console.log(`[legolas] Sending ${prepared.length} layer(s) to ${activeProvider === 'openai' ? 'OpenAI' : 'Anthropic'}:`);
+    prepared.forEach((item, i) => {
+      console.log(`  [${i + 1}] "${item.nodeName}"`, item.metadata);
+    });
+
     const activeKey = activeProvider === 'openai' ? storedOpenaiKey : storedApiKey;
     const blocks = activeProvider === 'openai'
       ? await callOpenAiVision(prepared, activeKey)
       : await callClaudeVision(prepared, activeKey);
-    // Wrap into the same shape as heuristic results
+    // One input node may produce multiple blocks, so map by block index
     const results = blocks.map((block, i) => ({
-      nodeId: prepared[i]?.nodeId || String(i),
-      nodeName: prepared[i]?.nodeName || 'Layer ' + (i + 1),
+      nodeId: 'ai-' + i,
+      nodeName: block.type
+        ? block.type.charAt(0).toUpperCase() + block.type.slice(1)
+        : 'Block ' + (i + 1),
       blockType: block.type || 'paragraph',
       block,
     }));
@@ -717,6 +725,8 @@ async function handleExportedSelection(items) {
 // ─── Claude API call ────────────────────────────────────────────────────────────
 
 const CLAUDE_SYSTEM_PROMPT = `You convert Figma designs into Letterhead newsletter platform block JSON.
+
+APPROACH: Scan each design top-to-bottom, left-to-right. For every distinct piece of content you see, produce one block. A single design may yield multiple blocks. Never wrap content in layout containers — always output flat, individual content blocks.
 
 BLOCK TYPES AND SCHEMAS (blockModel contents shown):
 
@@ -742,13 +752,6 @@ divider — blockModel: { color: "#hex", style: "solid"|"dashed"|"dotted", width
 youtube — blockModel: { link: "https://youtube.com/watch?v=...", src: "", alt: "", width: 600, align: "left", hasOriginalImageWidth: false, borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 } }
 
 audio — blockModel: { audioUrl: "https://example.com/episode.mp3", title: "Episode Title", subtitle: "Podcast Show", titleSettings: { font: "Arial", fontFallback: "Arial", color: "#020617", fontSize: 14, alignment: "left", lineHeight: 1.4 }, subtitleSettings: { font: "Arial", fontFallback: "Arial", color: "#64748b", fontSize: 12, alignment: "left", lineHeight: 1.4 }, borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 8, bottomRight: 8 } }
-
-dynamic — blockModel: { link: "https://example.com/article", title: "Article title", excerpt: "Excerpt text", author: "", siteName: "", publicationDate: "", image: "", imageOriginalUrl: "", imageAlt: "", imageCaption: "", hasImageCaption: false, hasTitle: true, hasExcerpt: true, hasImage: true, hasPublishedDate: false, hasSource: false, hasAuthor: false, titleSettings: { font: "Arial", fontFallback: "Arial", color: "#020617", fontSize: 18, alignment: "left", lineHeight: 1.4 }, excerptSettings: { font: "Arial", fontFallback: "Arial", color: "#020617", fontSize: 14, alignment: "left", lineHeight: 1.4 }, gap: 50, imageColumnWidth: 50, textColumnWidth: 50, imageSettings: { imageSmartCrop: "original" }, useButtonForReadMore: false, displayOrder: ["title", "excerpt"], borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 } }
-  + top-level: layoutType: 1
-
-nested-layout-2-column — blockModel: null
-  + top-level: blocks: [[leftBlock, ...], [rightBlock, ...]]
-  Each sub-block follows the same full schema.
 
 footer — blockModel: { align: "left"|"center" }
   + top-level: delta: { ops: [{ insert: "Unsubscribe | Manage preferences\\n" }] }
@@ -778,6 +781,11 @@ REQUIRED TOP-LEVEL FIELDS FOR EVERY BLOCK:
 }
 
 RULES:
+- Scan top-to-bottom. Each distinct content element → its own block.
+- A frame with a heading + paragraph + button → 3 separate blocks, not 1 layout block.
+- Do NOT use layout or container block types. Only use the content block types listed above.
+- Only emit a block for content you can clearly identify in the image. If you are unsure what something is, omit it entirely — never guess or use paragraph as a fallback.
+- Only emit a paragraph block when the design contains a clear body-text paragraph. Do not use paragraph for headings, captions, labels, or anything that better fits another block type.
 - Extract real colors, text content, and font sizes from the design.
 - Always use "https://ucarecdn.com/placeholder.jpg" for image src fields.
 - Derive padding from visual spacing in the design.
@@ -785,7 +793,6 @@ RULES:
 - Return ONLY a valid JSON array — no markdown fences, no explanation, no comments.`;
 
 async function callClaudeVision(items, apiKey) {
-  // Build interleaved image + text content for the message
   const content = [];
 
   if (items.length === 1) {
@@ -795,26 +802,33 @@ async function callClaudeVision(items, apiKey) {
     });
     content.push({
       type: 'text',
-      text: `Node name: "${items[0].nodeName}"\nNode metadata:\n${JSON.stringify(items[0].metadata, null, 2)}\n\nReturn a JSON array with exactly 1 block representing this design.`,
+      text: `Node name: "${items[0].nodeName}"\nNode metadata:\n${JSON.stringify(items[0].metadata, null, 2)}\n\nScan this design top-to-bottom. Return a JSON array with one block per distinct content element you find.`,
     });
   } else {
     content.push({
       type: 'text',
-      text: `Analyze these ${items.length} Figma nodes. Return a JSON array with exactly ${items.length} blocks in order:`,
+      text: `Scan each design top-to-bottom and return one block per distinct content element across all designs, in reading order:`,
     });
     items.forEach((item, i) => {
-      content.push({ type: 'text', text: `\n=== Node ${i + 1}: "${item.nodeName}" ===` });
+      content.push({ type: 'text', text: `\n=== Design ${i + 1}: "${item.nodeName}" ===` });
       content.push({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: item.base64 } });
       content.push({ type: 'text', text: `Metadata:\n${JSON.stringify(item.metadata, null, 2)}` });
     });
-    content.push({ type: 'text', text: `\nReturn a JSON array with exactly ${items.length} blocks (one per node, in order shown).` });
+    content.push({ type: 'text', text: `\nReturn a single JSON array containing all content blocks from all designs above, in top-to-bottom order.` });
   }
 
-  const body = JSON.stringify({
+  const requestPayload = {
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 8192,
     system: CLAUDE_SYSTEM_PROMPT,
     messages: [{ role: 'user', content }],
+  };
+  console.log('[legolas] → Anthropic request', {
+    url: 'https://api.anthropic.com/v1/messages',
+    model: requestPayload.model,
+    contentParts: content.map(p =>
+      p.type === 'image' ? { type: 'image', source: '[base64 PNG]' } : p
+    ),
   });
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -825,7 +839,7 @@ async function callClaudeVision(items, apiKey) {
       'content-type': 'application/json',
       'anthropic-dangerous-direct-browser-access': 'true',
     },
-    body,
+    body: JSON.stringify(requestPayload),
   });
 
   if (!res.ok) {
@@ -867,20 +881,36 @@ async function callOpenAiVision(items, apiKey) {
     userContent.push({ type: 'image_url', image_url: { url: 'data:image/png;base64,' + items[0].base64 } });
     userContent.push({
       type: 'text',
-      text: `Node name: "${items[0].nodeName}"\nNode metadata:\n${JSON.stringify(items[0].metadata, null, 2)}\n\nReturn a JSON array with exactly 1 block representing this design.`,
+      text: `Node name: "${items[0].nodeName}"\nNode metadata:\n${JSON.stringify(items[0].metadata, null, 2)}\n\nScan this design top-to-bottom. Return a JSON array with one block per distinct content element you find.`,
     });
   } else {
     userContent.push({
       type: 'text',
-      text: `Analyze these ${items.length} Figma nodes. Return a JSON array with exactly ${items.length} blocks in order:`,
+      text: `Scan each design top-to-bottom and return one block per distinct content element across all designs, in reading order:`,
     });
     items.forEach((item, i) => {
-      userContent.push({ type: 'text', text: `\n=== Node ${i + 1}: "${item.nodeName}" ===` });
+      userContent.push({ type: 'text', text: `\n=== Design ${i + 1}: "${item.nodeName}" ===` });
       userContent.push({ type: 'image_url', image_url: { url: 'data:image/png;base64,' + item.base64 } });
       userContent.push({ type: 'text', text: `Metadata:\n${JSON.stringify(item.metadata, null, 2)}` });
     });
-    userContent.push({ type: 'text', text: `\nReturn a JSON array with exactly ${items.length} blocks (one per node, in order shown).` });
+    userContent.push({ type: 'text', text: `\nReturn a single JSON array containing all content blocks from all designs above, in top-to-bottom order.` });
   }
+
+  const requestBody = {
+    model: 'gpt-4o',
+    max_tokens: 8192,
+    messages: [
+      { role: 'system', content: CLAUDE_SYSTEM_PROMPT },
+      { role: 'user', content: userContent },
+    ],
+  };
+  console.log('[legolas] → OpenAI request', {
+    url: 'https://api.openai.com/v1/chat/completions',
+    model: requestBody.model,
+    contentParts: userContent.map(p =>
+      p.type === 'image_url' ? { type: 'image_url', url: '[base64 PNG]' } : p
+    ),
+  });
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -888,14 +918,7 @@ async function callOpenAiVision(items, apiKey) {
       'Authorization': 'Bearer ' + apiKey,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      max_tokens: 8192,
-      messages: [
-        { role: 'system', content: CLAUDE_SYSTEM_PROMPT },
-        { role: 'user', content: userContent },
-      ],
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!res.ok) {
@@ -975,6 +998,7 @@ function uint8ToBase64(bytes) {
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary);
 }
+
 
 function generateBlocks() {
   if (!detectedBlocks.length) return;
