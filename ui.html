@@ -14,6 +14,24 @@
     height: 100vh;
     overflow: hidden;
   }
+
+  /* ─── Tabs ─────────────────────────────────────────────────────────────────── */
+  .tabs {
+    display: flex;
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0;
+  }
+  .tab {
+    flex: 1; padding: 9px 0; font-size: 11px; font-weight: 600;
+    border: none; background: none; cursor: pointer; color: #64748b;
+    transition: color 0.12s; text-align: center;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tab.active { color: #6366f1; border-bottom-color: #6366f1; }
+  .tab:hover:not(.active) { color: #334155; background: #f8fafc; }
+
+  /* ─── Shared layout ─────────────────────────────────────────────────────────── */
   .scroll-area { flex: 1; overflow-y: auto; padding: 12px 12px 0 12px; }
   h1 {
     font-size: 13px; font-weight: 700; color: #0f172a;
@@ -98,23 +116,6 @@
   }
   .btn-add-opt:hover { background: #f8fafc; border-color: #94a3b8; }
 
-  /* Actions bar */
-  .actions {
-    display: flex; gap: 8px;
-    padding: 10px 12px;
-    background: #fff;
-    border-top: 1px solid #e2e8f0;
-    flex-shrink: 0;
-  }
-  .btn {
-    flex: 1; padding: 8px; border: none; border-radius: 5px;
-    font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s;
-  }
-  .btn-primary { background: #6366f1; color: #fff; }
-  .btn-primary:hover { background: #4f46e5; }
-  .btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-  .btn-secondary:hover { background: #e2e8f0; }
-
   /* Block defaults tabs */
   .def-tabs {
     display: flex;
@@ -132,20 +133,200 @@
   .def-tab:last-child { border-right: none; }
   .def-tab.active { background: #6366f1; color: #fff; }
   .def-tab:hover:not(.active) { background: #f1f5f9; }
+
+  /* ─── Actions bar ──────────────────────────────────────────────────────────── */
+  .actions {
+    display: flex; gap: 8px;
+    padding: 10px 12px;
+    background: #fff;
+    border-top: 1px solid #e2e8f0;
+    flex-shrink: 0;
+  }
+  .btn {
+    flex: 1; padding: 8px; border: none; border-radius: 5px;
+    font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s;
+  }
+  .btn-primary { background: #6366f1; color: #fff; }
+  .btn-primary:hover { background: #4f46e5; }
+  .btn-primary:disabled { background: #c7d2fe; cursor: not-allowed; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+  .btn-secondary:hover { background: #e2e8f0; }
+
+  /* ─── Importer page ──────────────────────────────────────────────────────── */
+  .hint {
+    font-size: 11px; color: #64748b; line-height: 1.5;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 6px;
+    padding: 10px 12px; margin-bottom: 10px;
+  }
+  .hint strong { color: #374151; }
+
+  .analyze-row {
+    display: flex; gap: 7px; margin-bottom: 12px;
+  }
+  .btn-ai {
+    flex: 1; padding: 9px; border: none; border-radius: 6px;
+    background: #6366f1; color: #fff; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: background 0.12s;
+  }
+  .btn-ai:hover { background: #4f46e5; }
+  .btn-ai:disabled { background: #a5b4fc; cursor: not-allowed; }
+  .btn-quick {
+    padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 6px;
+    background: #fff; color: #475569; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: background 0.12s; white-space: nowrap;
+  }
+  .btn-quick:hover { background: #f1f5f9; }
+
+  /* API key section */
+  .api-key-section {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 6px;
+    margin-bottom: 10px; overflow: hidden;
+  }
+  .api-key-hd {
+    padding: 7px 10px; font-size: 10px; font-weight: 700;
+    color: #475569; text-transform: uppercase; letter-spacing: 0.4px;
+    cursor: pointer; user-select: none;
+    display: flex; justify-content: space-between; align-items: center;
+    background: #f8fafc;
+  }
+  .api-key-hd:hover { background: #f1f5f9; }
+  .api-key-bd { padding: 10px; border-top: 1px solid #e2e8f0; display: none; }
+  .api-key-bd.open { display: block; }
+  .api-key-row { display: flex; gap: 6px; }
+  .api-key-row input { flex: 1; }
+  .btn-save-key {
+    padding: 5px 10px; border: none; border-radius: 4px;
+    background: #6366f1; color: #fff; font-size: 11px; font-weight: 600;
+    cursor: pointer; flex-shrink: 0;
+  }
+  .btn-save-key:hover { background: #4f46e5; }
+  .key-status {
+    font-size: 10px; margin-top: 5px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .key-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+    background: #94a3b8;
+  }
+  .key-dot.set { background: #22c55e; }
+  .key-label { color: #64748b; }
+
+  .provider-toggle {
+    display: flex; margin-bottom: 10px;
+    border: 1px solid #e2e8f0; border-radius: 5px; overflow: hidden;
+  }
+  .provider-btn {
+    flex: 1; padding: 5px 0; font-size: 10px; font-weight: 700;
+    border: none; background: #fff; cursor: pointer; color: #64748b;
+    transition: background 0.12s, color 0.12s; text-align: center;
+    letter-spacing: 0.3px; text-transform: uppercase;
+  }
+  .provider-btn + .provider-btn { border-left: 1px solid #e2e8f0; }
+  .provider-btn.active { background: #6366f1; color: #fff; }
+  .provider-btn:hover:not(.active) { background: #f1f5f9; }
+
+  .no-key-warning {
+    display: none; font-size: 11px; color: #b45309;
+    background: #fef3c7; border: 1px solid #fde68a; border-radius: 4px;
+    padding: 7px 10px; margin-bottom: 10px;
+  }
+
+  /* Loading state */
+  .loading-state {
+    text-align: center; padding: 20px 16px;
+    color: #6366f1; font-size: 11px; line-height: 1.8;
+    background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 6px;
+    margin-bottom: 8px;
+  }
+  .spinner {
+    display: inline-block; width: 16px; height: 16px;
+    border: 2px solid #c7d2fe; border-top-color: #6366f1;
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+    vertical-align: middle; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Source badge */
+  .source-badge {
+    font-size: 8px; font-weight: 700; padding: 1px 5px;
+    border-radius: 3px; text-transform: uppercase; letter-spacing: 0.3px;
+    flex-shrink: 0;
+  }
+  .source-ai { background: #ede9fe; color: #7c3aed; }
+  .source-heuristic { background: #f1f5f9; color: #64748b; }
+
+  .block-list-header {
+    padding: 7px 10px; font-size: 10px; font-weight: 700;
+    color: #475569; text-transform: uppercase; letter-spacing: 0.4px;
+    background: #f8fafc; border: 1px solid #e2e8f0;
+    border-radius: 6px 6px 0 0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .block-count {
+    background: #6366f1; color: #fff; font-size: 9px; font-weight: 700;
+    padding: 2px 6px; border-radius: 10px;
+  }
+  .block-list {
+    border: 1px solid #e2e8f0; border-top: none;
+    border-radius: 0 0 6px 6px; overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .block-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; background: #fff;
+    border-top: 1px solid #f1f5f9;
+    font-size: 11px;
+  }
+  .block-item:first-child { border-top: none; }
+  .block-badge {
+    font-size: 9px; font-weight: 700; padding: 2px 6px;
+    border-radius: 3px; text-transform: uppercase; letter-spacing: 0.3px;
+    flex-shrink: 0; color: #fff; white-space: nowrap;
+  }
+  .block-node-name {
+    color: #374151; font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    flex: 1; min-width: 0;
+  }
+  .block-preview {
+    color: #94a3b8; font-size: 10px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    max-width: 100px; flex-shrink: 0;
+  }
+
+  .empty-state {
+    text-align: center; padding: 24px 16px;
+    color: #94a3b8; font-size: 11px; line-height: 1.6;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 6px;
+    margin-bottom: 8px;
+  }
+  .empty-state .icon { font-size: 22px; display: block; margin-bottom: 6px; }
+
+  .error-state {
+    padding: 10px 12px; font-size: 11px; color: #dc2626; line-height: 1.5;
+    background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px;
+    margin-bottom: 8px;
+  }
+  .error-state strong { display: block; margin-bottom: 3px; }
 </style>
 </head>
 <body>
 
-<div class="scroll-area">
+<!-- ─── Tab bar ──────────────────────────────────────────────────────────────── -->
+<div class="tabs">
+  <button class="tab active" id="tab-builder" onclick="switchPage('builder')">Block Builder</button>
+  <button class="tab" id="tab-importer" onclick="switchPage('importer')">Figma → Letterhead</button>
+</div>
+
+<!-- ─── Page 1: Block Builder ───────────────────────────────────────────────── -->
+<div class="scroll-area" id="page-builder">
   <h1>Newsletter Block Builder</h1>
 
-  <!-- Output mode toggle -->
   <div class="toggle-row">
     <button class="toggle-btn active" id="mode-visual" onclick="setMode('visual')">◈ Visual Preview</button>
     <button class="toggle-btn" id="mode-json" onclick="setMode('json')">{ } JSON</button>
   </div>
 
-  <!-- Block type selector -->
   <div class="form-group">
     <label>Block Type</label>
     <select id="blockType" onchange="onTypeChange()">
@@ -198,7 +379,6 @@
     </select>
   </div>
 
-  <!-- Block Defaults (collapsible) -->
   <div class="section">
     <div class="section-hd" onclick="toggleSection('defs')">
       Block Defaults <span id="defs-icon">▶</span>
@@ -217,7 +397,6 @@
     </div>
   </div>
 
-  <!-- Common settings (collapsible) -->
   <div class="section">
     <div class="section-hd" onclick="toggleSection('common')">
       Common Settings <span id="common-icon">▼</span>
@@ -295,18 +474,516 @@
     </div>
   </div>
 
-  <!-- Block-specific fields -->
   <div id="specific"></div>
   <div style="height:8px"></div>
 </div>
 
-<div class="actions">
+<!-- ─── Page 2: Figma → Letterhead ──────────────────────────────────────────── -->
+<div class="scroll-area" id="page-importer" style="display:none">
+  <h1>Figma → Letterhead</h1>
+
+  <p class="hint">
+    Select one or more layers in Figma, then click <strong>AI Analyze</strong> to use Claude vision
+    to classify and convert them into Letterhead blocks. <strong>Quick Analyze</strong> uses fast
+    local heuristics instead.
+  </p>
+
+  <!-- AI settings section -->
+  <div class="api-key-section">
+    <div class="api-key-hd" onclick="toggleApiKey()">
+      <span>AI Settings</span>
+      <span id="api-key-icon">▶</span>
+    </div>
+    <div class="api-key-bd" id="api-key-bd">
+      <div class="provider-toggle">
+        <button class="provider-btn active" id="provider-btn-openai" onclick="setProvider('openai')">OpenAI</button>
+        <button class="provider-btn" id="provider-btn-anthropic" onclick="setProvider('anthropic')">Anthropic</button>
+      </div>
+      <div class="api-key-row">
+        <input type="password" id="api-key-input" placeholder="sk-…" autocomplete="off">
+        <button class="btn-save-key" onclick="saveApiKey()">Save</button>
+      </div>
+      <div class="key-status">
+        <span class="key-dot" id="key-dot"></span>
+        <span class="key-label" id="key-label">No key saved</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- No key warning (shown when AI Analyze clicked without a key) -->
+  <div class="no-key-warning" id="no-key-warning">
+    Add your API key above to use AI Analyze.
+  </div>
+
+  <!-- Analyze buttons -->
+  <div class="analyze-row">
+    <button class="btn-ai" id="btn-ai-analyze" onclick="runAiAnalyze()">✦ AI Analyze</button>
+    <button class="btn-quick" onclick="runQuickAnalyze()">◎ Quick</button>
+  </div>
+
+  <div id="importer-results"></div>
+
+  <div style="height:8px"></div>
+</div>
+
+<!-- ─── Actions: Builder ─────────────────────────────────────────────────────── -->
+<div class="actions" id="actions-builder">
   <button class="btn btn-secondary" onclick="cancel()">Cancel</button>
   <button class="btn btn-primary" onclick="createBlock()">Create Block</button>
 </div>
 
+<!-- ─── Actions: Importer ────────────────────────────────────────────────────── -->
+<div class="actions" id="actions-importer" style="display:none">
+  <button class="btn btn-secondary" onclick="cancel()">Cancel</button>
+  <button class="btn btn-primary" id="btn-generate" disabled onclick="generateBlocks()">Generate Blocks</button>
+</div>
+
 <script>
-// ─── Output mode ─────────────────────────────────────────────────────────────
+// ─── Page switching ───────────────────────────────────────────────────────────
+function switchPage(page) {
+  document.getElementById('page-builder').style.display = page === 'builder' ? '' : 'none';
+  document.getElementById('page-importer').style.display = page === 'importer' ? '' : 'none';
+  document.getElementById('actions-builder').style.display = page === 'builder' ? '' : 'none';
+  document.getElementById('actions-importer').style.display = page === 'importer' ? '' : 'none';
+  document.getElementById('tab-builder').classList.toggle('active', page === 'builder');
+  document.getElementById('tab-importer').classList.toggle('active', page === 'importer');
+}
+
+// ─── Plugin ↔ UI messages ──────────────────────────────────────────────────────
+window.onmessage = (event) => {
+  const msg = event.data.pluginMessage;
+  if (!msg) return;
+  if (msg.type === 'api-key-loaded') {
+    onApiKeyLoaded(msg.key || '');
+  }
+  if (msg.type === 'openai-key-loaded') {
+    onOpenaiKeyLoaded(msg.key || '');
+  }
+  if (msg.type === 'selection-analyzed') {
+    renderAnalyzedBlocks(msg.blocks || [], 'heuristic');
+  }
+  if (msg.type === 'selection-exported') {
+    handleExportedSelection(msg.items || []);
+  }
+};
+
+// ─── API key management ────────────────────────────────────────────────────────
+let storedApiKey = '';      // Anthropic
+let storedOpenaiKey = '';   // OpenAI
+let activeProvider = 'openai';
+
+function onApiKeyLoaded(key) {
+  storedApiKey = key;
+  if (activeProvider === 'anthropic') updateKeyUI();
+}
+
+function onOpenaiKeyLoaded(key) {
+  storedOpenaiKey = key;
+  if (activeProvider === 'openai') updateKeyUI();
+}
+
+function setProvider(provider) {
+  activeProvider = provider;
+  document.getElementById('provider-btn-openai').classList.toggle('active', provider === 'openai');
+  document.getElementById('provider-btn-anthropic').classList.toggle('active', provider === 'anthropic');
+  const input = document.getElementById('api-key-input');
+  if (input) input.value = '';
+  updateKeyUI();
+}
+
+function updateKeyUI() {
+  const key = activeProvider === 'openai' ? storedOpenaiKey : storedApiKey;
+  const dot = document.getElementById('key-dot');
+  const label = document.getElementById('key-label');
+  const input = document.getElementById('api-key-input');
+  const hasKey = key.length > 0;
+  const placeholder = activeProvider === 'openai' ? 'sk-…' : 'sk-ant-api03-…';
+  if (dot) dot.className = 'key-dot' + (hasKey ? ' set' : '');
+  if (label) label.textContent = hasKey ? 'Key saved (' + key.substring(0, 12) + '…)' : 'No key saved';
+  if (input && !input.value) input.placeholder = hasKey ? '(key saved — paste to update)' : placeholder;
+}
+
+function saveApiKey() {
+  const input = document.getElementById('api-key-input');
+  const key = (input.value || '').trim();
+  if (!key) return;
+  if (activeProvider === 'openai') {
+    storedOpenaiKey = key;
+    parent.postMessage({ pluginMessage: { type: 'save-openai-key', key } }, '*');
+  } else {
+    storedApiKey = key;
+    parent.postMessage({ pluginMessage: { type: 'save-api-key', key } }, '*');
+  }
+  input.value = '';
+  updateKeyUI();
+  toggleApiKey(false);
+}
+
+function toggleApiKey(forceClose) {
+  const bd = document.getElementById('api-key-bd');
+  const ic = document.getElementById('api-key-icon');
+  const open = typeof forceClose === 'boolean' ? !forceClose : bd.classList.contains('open');
+  bd.classList.toggle('open', !open);
+  ic.textContent = !open ? '▼' : '▶';
+}
+
+// ─── Importer logic ────────────────────────────────────────────────────────────
+const BLOCK_BADGE_COLORS = {
+  paragraph: '#3B82F6', heading: '#1D4ED8', blockquote: '#7C3AED',
+  button: '#059669', image: '#D97706', logo: '#EA580C',
+  divider: '#94A3B8', html: '#DC2626', youtube: '#B91C1C',
+  poll: '#CA8A04', curation: '#0D9488', newrss: '#0F766E',
+  wordpress: '#2563EB', dynamic: '#0891B2', promotion: '#BE185D',
+  newpromotion: '#9D174D', profile: '#4F46E5', share: '#0284C7',
+  rss: '#B45309', evvnt: '#6D28D9', news: '#1E40AF',
+  footer: '#1E293B', 'nested-layout-2-column': '#334155',
+};
+
+let detectedBlocks = [];
+
+// ─── Quick (heuristic) analyze ─────────────────────────────────────────────────
+function runQuickAnalyze() {
+  showLoading('Analyzing selection…');
+  document.getElementById('btn-generate').disabled = true;
+  parent.postMessage({ pluginMessage: { type: 'analyze-selection' } }, '*');
+}
+
+// ─── AI analyze ────────────────────────────────────────────────────────────────
+function runAiAnalyze() {
+  document.getElementById('no-key-warning').style.display = 'none';
+  const activeKey = activeProvider === 'openai' ? storedOpenaiKey : storedApiKey;
+  if (!activeKey) {
+    document.getElementById('no-key-warning').style.display = 'block';
+    document.getElementById('api-key-bd').classList.add('open');
+    document.getElementById('api-key-icon').textContent = '▼';
+    return;
+  }
+  showLoading('Exporting layers from Figma…');
+  document.getElementById('btn-generate').disabled = true;
+  parent.postMessage({ pluginMessage: { type: 'export-selection' } }, '*');
+}
+
+function showLoading(msg) {
+  document.getElementById('importer-results').innerHTML =
+    `<div class="loading-state"><span class="spinner"></span>${esc(msg)}</div>`;
+}
+
+async function handleExportedSelection(items) {
+  if (!items || items.length === 0) {
+    document.getElementById('importer-results').innerHTML = `
+      <div class="empty-state">
+        <span class="icon">◇</span>
+        No layers selected.<br>Select layers in Figma and try again.
+      </div>`;
+    document.getElementById('btn-generate').disabled = true;
+    return;
+  }
+
+  const providerLabel = activeProvider === 'openai' ? 'GPT-4o' : 'Claude';
+  showLoading(`Asking ${providerLabel} to classify ${items.length} layer${items.length > 1 ? 's' : ''}…`);
+
+  try {
+    // Convert Uint8Array bytes to base64 in the UI thread
+    const prepared = items.map(item => ({
+      nodeId: item.nodeId,
+      nodeName: item.nodeName,
+      base64: uint8ToBase64(item.imageBytes),
+      metadata: item.metadata,
+    }));
+
+    const activeKey = activeProvider === 'openai' ? storedOpenaiKey : storedApiKey;
+    const blocks = activeProvider === 'openai'
+      ? await callOpenAiVision(prepared, activeKey)
+      : await callClaudeVision(prepared, activeKey);
+    // Wrap into the same shape as heuristic results
+    const results = blocks.map((block, i) => ({
+      nodeId: prepared[i]?.nodeId || String(i),
+      nodeName: prepared[i]?.nodeName || 'Layer ' + (i + 1),
+      blockType: block.type || 'paragraph',
+      block,
+    }));
+    renderAnalyzedBlocks(results, 'ai');
+  } catch (err) {
+    document.getElementById('importer-results').innerHTML = `
+      <div class="error-state">
+        <strong>AI analysis failed</strong>
+        ${esc(String(err.message || err))}
+        <br><br>Check your API key or try Quick Analyze instead.
+      </div>`;
+    document.getElementById('btn-generate').disabled = true;
+  }
+}
+
+// ─── Claude API call ────────────────────────────────────────────────────────────
+
+const CLAUDE_SYSTEM_PROMPT = `You convert Figma designs into Letterhead newsletter platform block JSON.
+
+BLOCK TYPES AND SCHEMAS (blockModel contents shown):
+
+paragraph — blockModel: { align: "left"|"center"|"right" }
+  + top-level: delta: { ops: [{ insert: "text content\\n" }] }
+
+heading — blockModel: { headingType: "h1"|"h2"|"h3"|"h4"|"h5"|"h6", align }
+  + top-level: delta: { ops: [{ insert: "heading text\\n" }] }
+  Size hint: h1=36px, h2=30px, h3=24px, h4=20px, h5=18px, h6=16px
+
+blockquote — blockModel: { borderColor: "#hex" }
+  + top-level: delta: { ops: [{ insert: "quote text\\n" }] }
+
+button — blockModel: { value: "label", link: "https://example.com", backgroundColor: "#hex", color: "#hex", align: "left"|"center"|"right", borderRadius: { topLeft: 6, topRight: 6, bottomLeft: 6, bottomRight: 6 }, innerPadding: { top: 10, right: 16, bottom: 10, left: 16 } }
+
+image — blockModel: { src: "https://ucarecdn.com/placeholder.jpg", alt: "", link: "", width: 600, align: "left"|"center"|"right", imageSmartCrop: "original", hasOriginalImageWidth: false, originalSrc: "", borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 } }
+
+logo — same as image but width <= 300
+
+divider — blockModel: { color: "#hex", style: "solid"|"dashed"|"dotted", width: 1 }
+  (width = thickness in pixels)
+
+youtube — blockModel: { link: "https://youtube.com/watch?v=...", src: "", alt: "", width: 600, align: "left", hasOriginalImageWidth: false, borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 } }
+
+audio — blockModel: { audioUrl: "https://example.com/episode.mp3", title: "Episode Title", subtitle: "Podcast Show", titleSettings: { font: "Arial", fontFallback: "Arial", color: "#020617", fontSize: 14, alignment: "left", lineHeight: 1.4 }, subtitleSettings: { font: "Arial", fontFallback: "Arial", color: "#64748b", fontSize: 12, alignment: "left", lineHeight: 1.4 }, borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 8, bottomRight: 8 } }
+
+dynamic — blockModel: { link: "https://example.com/article", title: "Article title", excerpt: "Excerpt text", author: "", siteName: "", publicationDate: "", image: "", imageOriginalUrl: "", imageAlt: "", imageCaption: "", hasImageCaption: false, hasTitle: true, hasExcerpt: true, hasImage: true, hasPublishedDate: false, hasSource: false, hasAuthor: false, titleSettings: { font: "Arial", fontFallback: "Arial", color: "#020617", fontSize: 18, alignment: "left", lineHeight: 1.4 }, excerptSettings: { font: "Arial", fontFallback: "Arial", color: "#020617", fontSize: 14, alignment: "left", lineHeight: 1.4 }, gap: 50, imageColumnWidth: 50, textColumnWidth: 50, imageSettings: { imageSmartCrop: "original" }, useButtonForReadMore: false, displayOrder: ["title", "excerpt"], borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 } }
+  + top-level: layoutType: 1
+
+nested-layout-2-column — blockModel: null
+  + top-level: blocks: [[leftBlock, ...], [rightBlock, ...]]
+  Each sub-block follows the same full schema.
+
+footer — blockModel: { align: "left"|"center" }
+  + top-level: delta: { ops: [{ insert: "Unsubscribe | Manage preferences\\n" }] }
+
+REQUIRED TOP-LEVEL FIELDS FOR EVERY BLOCK:
+{
+  "type": "<one of the types above>",
+  "uniqueId": "<random 10-char alphanumeric string>",
+  "blockModel": <per type, or null>,
+  "backgroundColor": "<hex color, default #FFFFFF>",
+  "textColor": "<hex color, default #020617>",
+  "paddingTop": <number, default 10>,
+  "paddingRight": <number, default 25>,
+  "paddingBottom": <number, default 10>,
+  "paddingLeft": <number, default 25>,
+  "fontSize": <number, default 14>,
+  "lineHeight": 1.4,
+  "borderColor": "transparent",
+  "borderStyle": "solid",
+  "borderThickness": { "top": 0, "right": 0, "bottom": 0, "left": 0 },
+  "borderRadius": { "topLeft": 0, "topRight": 0, "bottomLeft": 0, "bottomRight": 0 },
+  "columnWidth": 100,
+  "layoutType": 0,
+  "isLocked": false,
+  "tags": [],
+  "blocks": []
+}
+
+RULES:
+- Extract real colors, text content, and font sizes from the design.
+- Always use "https://ucarecdn.com/placeholder.jpg" for image src fields.
+- Derive padding from visual spacing in the design.
+- For text blocks, put the actual visible text into delta.ops[0].insert.
+- Return ONLY a valid JSON array — no markdown fences, no explanation, no comments.`;
+
+async function callClaudeVision(items, apiKey) {
+  // Build interleaved image + text content for the message
+  const content = [];
+
+  if (items.length === 1) {
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: 'image/png', data: items[0].base64 },
+    });
+    content.push({
+      type: 'text',
+      text: `Node name: "${items[0].nodeName}"\nNode metadata:\n${JSON.stringify(items[0].metadata, null, 2)}\n\nReturn a JSON array with exactly 1 block representing this design.`,
+    });
+  } else {
+    content.push({
+      type: 'text',
+      text: `Analyze these ${items.length} Figma nodes. Return a JSON array with exactly ${items.length} blocks in order:`,
+    });
+    items.forEach((item, i) => {
+      content.push({ type: 'text', text: `\n=== Node ${i + 1}: "${item.nodeName}" ===` });
+      content.push({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: item.base64 } });
+      content.push({ type: 'text', text: `Metadata:\n${JSON.stringify(item.metadata, null, 2)}` });
+    });
+    content.push({ type: 'text', text: `\nReturn a JSON array with exactly ${items.length} blocks (one per node, in order shown).` });
+  }
+
+  const body = JSON.stringify({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 8192,
+    system: CLAUDE_SYSTEM_PROMPT,
+    messages: [{ role: 'user', content }],
+  });
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body,
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    let parsed = {};
+    try { parsed = JSON.parse(errBody); } catch (_) {}
+    const msg = parsed.error?.message || errBody || `HTTP ${res.status}`;
+    throw new Error(`[${res.status}] ${msg}`);
+  }
+
+  const data = await res.json();
+  const raw = data.content?.[0]?.text || '';
+  return parseClaudeBlocks(raw);
+}
+
+function parseClaudeBlocks(raw) {
+  // Strip markdown code fences if present
+  const stripped = raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();
+  try {
+    const parsed = JSON.parse(stripped);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch (_) {
+    // Try to extract a JSON array from anywhere in the response
+    const match = stripped.match(/\[[\s\S]*\]/);
+    if (match) {
+      const parsed = JSON.parse(match[0]);
+      return Array.isArray(parsed) ? parsed : [parsed];
+    }
+    throw new Error('Could not parse Claude response as JSON. Raw: ' + stripped.substring(0, 200));
+  }
+}
+
+// ─── OpenAI API call ───────────────────────────────────────────────────────────
+
+async function callOpenAiVision(items, apiKey) {
+  const userContent = [];
+
+  if (items.length === 1) {
+    userContent.push({ type: 'image_url', image_url: { url: 'data:image/png;base64,' + items[0].base64 } });
+    userContent.push({
+      type: 'text',
+      text: `Node name: "${items[0].nodeName}"\nNode metadata:\n${JSON.stringify(items[0].metadata, null, 2)}\n\nReturn a JSON array with exactly 1 block representing this design.`,
+    });
+  } else {
+    userContent.push({
+      type: 'text',
+      text: `Analyze these ${items.length} Figma nodes. Return a JSON array with exactly ${items.length} blocks in order:`,
+    });
+    items.forEach((item, i) => {
+      userContent.push({ type: 'text', text: `\n=== Node ${i + 1}: "${item.nodeName}" ===` });
+      userContent.push({ type: 'image_url', image_url: { url: 'data:image/png;base64,' + item.base64 } });
+      userContent.push({ type: 'text', text: `Metadata:\n${JSON.stringify(item.metadata, null, 2)}` });
+    });
+    userContent.push({ type: 'text', text: `\nReturn a JSON array with exactly ${items.length} blocks (one per node, in order shown).` });
+  }
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      max_tokens: 8192,
+      messages: [
+        { role: 'system', content: CLAUDE_SYSTEM_PROMPT },
+        { role: 'user', content: userContent },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    let parsed = {};
+    try { parsed = JSON.parse(errBody); } catch (_) {}
+    const msg = parsed.error?.message || errBody || `HTTP ${res.status}`;
+    throw new Error(`[${res.status}] ${msg}`);
+  }
+
+  const data = await res.json();
+  const raw = data.choices?.[0]?.message?.content || '';
+  return parseClaudeBlocks(raw);
+}
+
+// ─── Shared render + generate ──────────────────────────────────────────────────
+function renderAnalyzedBlocks(blocks, source) {
+  detectedBlocks = blocks;
+  const container = document.getElementById('importer-results');
+  const btn = document.getElementById('btn-generate');
+
+  if (!blocks.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <span class="icon">◇</span>
+        No recognizable blocks found.<br>Select layers in Figma and try again.
+      </div>`;
+    btn.disabled = true;
+    return;
+  }
+
+  const isAi = source === 'ai';
+  const rows = blocks.map(item => {
+    const type = item.blockType || (item.block && item.block.type) || 'paragraph';
+    const color = BLOCK_BADGE_COLORS[type] || '#6B7280';
+    const preview = getPreview(item.block);
+    return `
+      <div class="block-item">
+        <span class="block-badge" style="background:${color}">${esc(type)}</span>
+        <span class="source-badge ${isAi ? 'source-ai' : 'source-heuristic'}">${isAi ? 'AI' : 'auto'}</span>
+        <span class="block-node-name" title="${esc(item.nodeName)}">${esc(item.nodeName)}</span>
+        ${preview ? `<span class="block-preview" title="${esc(preview)}">${esc(preview)}</span>` : ''}
+      </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="block-list-header">
+      Detected Blocks
+      <span class="block-count">${blocks.length}</span>
+    </div>
+    <div class="block-list">${rows}</div>`;
+
+  btn.disabled = false;
+  btn.textContent = `Generate ${blocks.length} Block${blocks.length > 1 ? 's' : ''}`;
+}
+
+function getPreview(block) {
+  if (!block) return '';
+  if (block.delta && Array.isArray(block.delta.ops)) {
+    const text = block.delta.ops.map(op => op.insert || '').join('').trim();
+    return text.length > 36 ? text.substring(0, 36) + '…' : text;
+  }
+  const m = block.blockModel;
+  if (m) {
+    const val = m.value || m.questionText || m.title || m.prompt || m.linkText || m.html;
+    if (val && typeof val === 'string') return val.length > 36 ? val.substring(0, 36) + '…' : val;
+  }
+  return '';
+}
+
+function esc(str) {
+  return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function uint8ToBase64(bytes) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+function generateBlocks() {
+  if (!detectedBlocks.length) return;
+  parent.postMessage({
+    pluginMessage: { type: 'render-blocks', blocks: detectedBlocks.map(d => d.block) }
+  }, '*');
+}
+
+// ─── Builder: output mode ─────────────────────────────────────────────────────
 let outputMode = 'visual';
 function setMode(mode) {
   outputMode = mode;
@@ -314,7 +991,7 @@ function setMode(mode) {
   document.getElementById('mode-visual').classList.toggle('active', mode === 'visual');
 }
 
-// ─── Color helpers ────────────────────────────────────────────────────────────
+// ─── Builder: color helpers ───────────────────────────────────────────────────
 function syncPicker(id) {
   const t = document.getElementById(id + '_t');
   if (t) t.value = document.getElementById(id).value.toUpperCase();
@@ -331,7 +1008,7 @@ function colorVal(id, fallback) {
   return p ? p.value : fallback;
 }
 
-// ─── Section toggle ───────────────────────────────────────────────────────────
+// ─── Builder: section toggle ──────────────────────────────────────────────────
 function toggleSection(id) {
   const bd = document.getElementById(id + '-bd');
   const ic = document.getElementById(id + '-icon');
@@ -339,7 +1016,7 @@ function toggleSection(id) {
   ic.textContent = bd.classList.contains('hidden') ? '▶' : '▼';
 }
 
-// ─── Read helpers ─────────────────────────────────────────────────────────────
+// ─── Builder: read helpers ────────────────────────────────────────────────────
 function v(id, fb) {
   const el = document.getElementById(id);
   return el ? el.value : (fb !== undefined ? fb : '');
@@ -351,7 +1028,7 @@ function chk(id, fb) {
   return el ? el.checked : (fb !== undefined ? fb : false);
 }
 
-// ─── Block defaults ───────────────────────────────────────────────────────────
+// ─── Builder: block defaults ──────────────────────────────────────────────────
 function getInitialDefaults() {
   const base = (fs, lh) => ({
     fontSize: fs, lineHeight: lh,
@@ -373,7 +1050,6 @@ let blockDefaults = (() => {
     const s = localStorage.getItem('lh_block_defaults');
     if (s) {
       const parsed = JSON.parse(s);
-      // Merge with initial to fill any missing keys from old saves
       const init = getInitialDefaults();
       parsed.paragraph = Object.assign({}, init.paragraph, parsed.paragraph);
       for (const lv of ['h1','h2','h3','h4','h5','h6']) {
@@ -436,7 +1112,6 @@ function renderDefsPanel(tab) {
 function updateDef(tab, key, val) {
   getDefsTarget(tab)[key] = val;
   saveDefaults();
-  // Live-sync to Common Settings if the current block matches
   const type = document.getElementById('blockType').value;
   if (tab === 'paragraph' && type === 'paragraph') {
     applyDefaults('paragraph');
@@ -485,7 +1160,7 @@ function applyDefaults(type, htLevel) {
   set('c_font', d.font);      set('c_fontfb', d.fontFallback);
 }
 
-// ─── Poll options state ───────────────────────────────────────────────────────
+// ─── Builder: poll options ────────────────────────────────────────────────────
 let pollOpts = ['Option 1', 'Option 2'];
 
 function renderPollOpts() {
@@ -502,7 +1177,7 @@ function renderPollOpts() {
 function addPollOpt() { pollOpts.push('Option ' + (pollOpts.length + 1)); renderPollOpts(); }
 function rmPollOpt(i) { pollOpts.splice(i, 1); renderPollOpts(); }
 
-// ─── Type-specific form templates ─────────────────────────────────────────────
+// ─── Builder: type-specific templates ─────────────────────────────────────────
 function tplParagraph() { return `
   <div class="form-group"><label>Text</label>
     <textarea id="f_text">Start writing...</textarea></div>
@@ -666,7 +1341,6 @@ function tplPoll() { return `
 `; }
 
 function tplContentBlock(type) {
-  const extra = type === 'curation' ? '' : '';
   return `
   <div class="form-group"><label>Keyword / Search</label>
     <input type="text" id="f_kw" value=""></div>
@@ -687,7 +1361,6 @@ function tplContentBlock(type) {
   </div>
   <div class="form-group"><label>Column Gap</label>
     <input type="number" id="f_gap" value="50" min="0"></div>
-  ${extra}
 `; }
 
 function tplDynamic() { return `
@@ -888,38 +1561,18 @@ function tplFooter() { return `
     <select id="f_align"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div>
 `; }
 
-// ─── Type → template map ──────────────────────────────────────────────────────
 const TEMPLATES = {
-  paragraph: tplParagraph,
-  heading: tplHeading,
-  blockquote: tplBlockquote,
-  button: tplButton,
-  image: tplImage,
-  logo: tplLogo,
-  divider: tplDivider,
-  html: tplHtml,
-  youtube: tplYoutube,
-  poll: tplPoll,
+  paragraph: tplParagraph, heading: tplHeading, blockquote: tplBlockquote,
+  button: tplButton, image: tplImage, logo: tplLogo, divider: tplDivider,
+  html: tplHtml, youtube: tplYoutube, poll: tplPoll,
   curation: () => tplContentBlock('curation'),
   newrss: () => tplContentBlock('newrss'),
   wordpress: () => tplContentBlock('wordpress'),
-  dynamic: tplDynamic,
-  promotion: tplPromotion,
-  newpromotion: tplNewPromotion,
-  profile: tplProfile,
-  share: tplShare,
-  rss: tplRss,
-  evvnt: tplEvvnt,
-  news: tplNews,
-  revContent: tplRevContent,
-  iterable: tplIterable,
-  googleDocs: tplGoogleDocs,
-  view_in_browser: tplViewInBrowser,
-  aiText: tplAiText,
-  audio: tplAudio,
-  layout: tplLayout,
-  'nested-layout-2-column': tpl2Col,
-  footer: tplFooter,
+  dynamic: tplDynamic, promotion: tplPromotion, newpromotion: tplNewPromotion,
+  profile: tplProfile, share: tplShare, rss: tplRss, evvnt: tplEvvnt,
+  news: tplNews, revContent: tplRevContent, iterable: tplIterable,
+  googleDocs: tplGoogleDocs, view_in_browser: tplViewInBrowser, aiText: tplAiText,
+  audio: tplAudio, layout: tplLayout, 'nested-layout-2-column': tpl2Col, footer: tplFooter,
 };
 
 const TYPE_LABELS = {
@@ -950,7 +1603,6 @@ function onTypeChange() {
 
   if (type === 'poll') { pollOpts = ['Option 1', 'Option 2']; renderPollOpts(); }
 
-  // Apply stored defaults for paragraph/heading; hardcoded fallbacks for other types
   if (type === 'paragraph' || type === 'heading') {
     applyDefaults(type);
   } else {
@@ -961,7 +1613,7 @@ function onTypeChange() {
   }
 }
 
-// ─── Build helpers ────────────────────────────────────────────────────────────
+// ─── Builder: build helpers ───────────────────────────────────────────────────
 function uid() { return Math.random().toString(36).substr(2, 9) + Math.random().toString(36).substr(2, 9); }
 
 function textSettings(size) {
@@ -1013,40 +1665,22 @@ function layoutChildren(lt) {
   return [img, txt];
 }
 
-// ─── Build block JSON ─────────────────────────────────────────────────────────
+// ─── Builder: build block JSON ────────────────────────────────────────────────
 function buildBlock() {
   const type = document.getElementById('blockType').value;
 
   const base = {
-    type,
-    uniqueId: uid(),
-    blocks: [],
-    blockModel: {},
-    backgroundColor: colorVal('c_bg', '#FFFFFF'),
-    bgImage: '',
-    bgImageFit: 'fill',
-    borderColor: colorVal('c_bc', 'transparent'),
-    borderStyle: v('c_bs', 'solid'),
+    type, uniqueId: uid(), blocks: [], blockModel: {},
+    backgroundColor: colorVal('c_bg', '#FFFFFF'), bgImage: '', bgImageFit: 'fill',
+    borderColor: colorVal('c_bc', 'transparent'), borderStyle: v('c_bs', 'solid'),
     borderThickness: { top: i('c_bt',0), right: i('c_br',0), bottom: i('c_bb',0), left: i('c_bl',0) },
     borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 },
-    columnWidth: 100,
-    defaultFont: v('c_font', 'Arial'),
-    fontFallback: v('c_fontfb', 'Arial'),
-    fontSize: n('c_fs', 14),
-    lineHeight: n('c_lh', 1.4),
-    listLineHeight: null,
-    layoutType: 0,
-    paddingTop: i('c_pt', 10),
-    paddingRight: i('c_pr', 25),
-    paddingBottom: i('c_pb', 10),
-    paddingLeft: i('c_pl', 25),
+    columnWidth: 100, defaultFont: v('c_font', 'Arial'), fontFallback: v('c_fontfb', 'Arial'),
+    fontSize: n('c_fs', 14), lineHeight: n('c_lh', 1.4), listLineHeight: null, layoutType: 0,
+    paddingTop: i('c_pt', 10), paddingRight: i('c_pr', 25), paddingBottom: i('c_pb', 10), paddingLeft: i('c_pl', 25),
     mobilePadding: { top: i('c_pt',10), right: i('c_pr',25), bottom: i('c_pb',10), left: i('c_pl',25) },
-    useMobilePadding: false,
-    isLocked: false,
-    isLayoutStacked: false,
-    extendBgColor: false,
-    tags: [],
-    targetable: false,
+    useMobilePadding: false, isLocked: false, isLayoutStacked: false,
+    extendBgColor: false, tags: [], targetable: false,
     textColor: colorVal('c_tc', '#020617'),
     permissions: { allowClone: true, allowDelete: true }
   };
@@ -1071,10 +1705,8 @@ function buildBlock() {
       const r = i('f_btr', 6);
       base.blockModel = {
         align: v('f_align','left'),
-        backgroundColor: colorVal('f_btnbg','#1D2D4D'),
-        color: colorVal('f_btnc','#FFFFFF'),
-        link: v('f_link','https://example.com'),
-        value: v('f_val','Click Here'),
+        backgroundColor: colorVal('f_btnbg','#1D2D4D'), color: colorVal('f_btnc','#FFFFFF'),
+        link: v('f_link','https://example.com'), value: v('f_val','Click Here'),
         borderRadius: { topLeft: r, topRight: r, bottomLeft: r, bottomRight: r },
         innerPadding: { top: 10, right: 12, bottom: 10, left: 12 }
       };
@@ -1084,11 +1716,9 @@ function buildBlock() {
       base.blockModel = {
         align: v('f_align','left'), alt: v('f_alt',''),
         borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 },
-        hasOriginalImageWidth: false,
-        imageSmartCrop: v('f_crop','original'),
+        hasOriginalImageWidth: false, imageSmartCrop: v('f_crop','original'),
         link: v('f_link',''), originalSrc: '',
-        src: v('f_src','https://ucarecdn.com/placeholder.jpg'),
-        width: i('f_width', 600)
+        src: v('f_src','https://ucarecdn.com/placeholder.jpg'), width: i('f_width', 600)
       };
       break;
     }
@@ -1098,8 +1728,7 @@ function buildBlock() {
         borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 },
         hasOriginalImageWidth: false, imageSmartCrop: 'original',
         link: v('f_link',''), originalSrc: '',
-        src: v('f_src','https://ucarecdn.com/logo.png'),
-        width: i('f_width', 200)
+        src: v('f_src','https://ucarecdn.com/logo.png'), width: i('f_width', 200)
       };
       break;
     }
@@ -1122,8 +1751,7 @@ function buildBlock() {
     }
     case 'poll': {
       base.blockModel = {
-        id: null,
-        title: v('f_ptitle','Weekly Poll'),
+        id: null, title: v('f_ptitle','Weekly Poll'),
         questionText: v('f_qtext','What is your favorite color?'),
         pollType: i('f_ptype', 1), originType: 3,
         showResultsOnResponsePage: chk('f_showres'),
@@ -1138,9 +1766,7 @@ function buildBlock() {
         buttonBackgroundColor: colorVal('f_pbg','#1D2D4D'),
         buttonBorderRadius: { topLeft: 3, topRight: 3, bottomLeft: 3, bottomRight: 3 },
         buttonTextColor: colorVal('f_pc','#FFFFFF'),
-        buttonSpacing: 8,
-        buttonInnerPadding: { top: 10, right: 12, bottom: 10, left: 12 },
-        buttonWidth: 100
+        buttonSpacing: 8, buttonInnerPadding: { top: 10, right: 12, bottom: 10, left: 12 }, buttonWidth: 100
       };
       break;
     }
@@ -1150,15 +1776,13 @@ function buildBlock() {
       const cm = {
         sources: [], tags: [], excludeTags: [], tagOperator: 0,
         types: [], feeds: [], keyword: v('f_kw',''), dateCurated: [],
-        daysToDisplay: 0, itemCount: i('f_ic',1), itemOffset: i('f_io',0),
-        useExactDates: false,
+        daysToDisplay: 0, itemCount: i('f_ic',1), itemOffset: i('f_io',0), useExactDates: false,
         hasTitle: chk('f_hTitle',true), hasExcerpt: chk('f_hExcerpt',true),
         hasImage: chk('f_hImage',true), hasPublishedDate: chk('f_hDate'),
         hasSource: chk('f_hSource'), hasAuthor: chk('f_hAuthor'),
         title: '', author: '', excerpt: '', siteName: '',
         publicationDate: '', image: '', imageOriginalUrl: '', imageAlt: '',
-        imageCaption: { ops: [{ insert: '\n' }] }, hasImageCaption: chk('f_hCaption',true),
-        link: '',
+        imageCaption: { ops: [{ insert: '\n' }] }, hasImageCaption: chk('f_hCaption',true), link: '',
         titleSettings: textSettings(), authorSettings: textSettings(),
         excerptSettings: textSettings(), siteNameSettings: textSettings(),
         publicationDateSettings: textSettings(), imageCaptionSettings: textSettings(),
@@ -1212,8 +1836,7 @@ function buildBlock() {
     }
     case 'newpromotion': {
       base.blockModel = {
-        zone: i('f_zone',0), twoColumnPromo: chk('f_twocol'),
-        stackOnMobile: chk('f_stack',true),
+        zone: i('f_zone',0), twoColumnPromo: chk('f_twocol'), stackOnMobile: chk('f_stack',true),
         title: v('f_title','Promotion placeholder'), disclaimer: v('f_disc','Sponsored'),
         displayDisclaimer: chk('f_showDisc',true),
         headingSettings: textSettings(18), copySettings: textSettings(14), disclaimerSettings: textSettings(12)
@@ -1232,8 +1855,7 @@ function buildBlock() {
     case 'share': {
       base.blockModel = {
         models: [], align: v('f_align','center'),
-        color: v('f_color','origin'), custom: chk('f_custom'),
-        display: i('f_disp',0), gap: i('f_gap',16)
+        color: v('f_color','origin'), custom: chk('f_custom'), display: i('f_disp',0), gap: i('f_gap',16)
       };
       break;
     }
@@ -1249,8 +1871,7 @@ function buildBlock() {
         backgroundColor: colorVal('f_ebg','#1D2D4D'), buttonFontSize: 14,
         color: colorVal('f_ec','#FFFFFF'), countPerDay: i('f_cpd',0),
         categories: [], callToAction: v('f_cta','Get Tickets'),
-        daysToDisplay: i('f_days',0), dateFontSize: 14, descriptionFontSize: 14,
-        events: [],
+        daysToDisplay: i('f_days',0), dateFontSize: 14, descriptionFontSize: 14, events: [],
         hasButton: chk('f_hbtn',true), hasDescription: chk('f_hdesc',true),
         hasImage: chk('f_himg',true), hasPrice: chk('f_hprice',true),
         hasVenue: chk('f_hvenue',true), includeCurrentDate: chk('f_hcurdate',true),
@@ -1282,8 +1903,7 @@ function buildBlock() {
     case 'aiText': {
       base.blockModel = {
         prompt: v('f_prompt','Write a 3-sentence summary of today\'s top news.'),
-        fallbackText: v('f_fbt','Content unavailable.'),
-        useFallbackText: chk('f_usefbt')
+        fallbackText: v('f_fbt','Content unavailable.'), useFallbackText: chk('f_usefbt')
       };
       break;
     }
@@ -1291,8 +1911,7 @@ function buildBlock() {
       const r = i('f_arad',8);
       base.blockModel = {
         audioUrl: v('f_aurl','https://example.com/episode.mp3'),
-        title: v('f_atitle','Episode 42: The Answer'),
-        subtitle: v('f_asub','My Podcast Show'),
+        title: v('f_atitle','Episode 42: The Answer'), subtitle: v('f_asub','My Podcast Show'),
         titleSettings: textSettings(), subtitleSettings: textSettings(),
         borderRadius: { topLeft: r, topRight: r, bottomLeft: r, bottomRight: r }
       };
