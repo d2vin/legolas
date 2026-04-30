@@ -689,6 +689,7 @@ async function handleExportedSelection(items) {
       nodeName: item.nodeName,
       base64: uint8ToBase64(item.imageBytes),
       metadata: item.metadata,
+      html: item.html || '',
     }));
 
     // Debug: log metadata and download each image so you can inspect what's being sent
@@ -698,9 +699,10 @@ async function handleExportedSelection(items) {
     });
 
     const activeKey = activeProvider === 'openai' ? storedOpenaiKey : storedApiKey;
-    const blocks = activeProvider === 'openai'
+    const rawBlocks = activeProvider === 'openai'
       ? await callOpenAiVision(prepared, activeKey)
       : await callClaudeVision(prepared, activeKey);
+    const blocks = validateBlocksAgainstNodes(rawBlocks, prepared);
     // One input node may produce multiple blocks, so map by block index
     const results = blocks.map((block, i) => ({
       nodeId: 'ai-' + i,
@@ -722,32 +724,163 @@ async function handleExportedSelection(items) {
   }
 }
 
+// ─── Block validation + reconciliation ────────────────────────────────────────
+
+function validateBlocksAgainstNodes(rawBlocks, preparedItems) {
+  const normalize = s => s.toLowerCase().replace(/[\s\n\r]+/g, ' ').trim();
+
+  // Collect every real text node from the metadata tree.
+  // Recurse through children (which carry suggestedBlockType/Level) and use
+  // allTextChildren as a safety net for anything deeper than the child tree.
+  const realNodes = [];
+  const seenKeys = new Set();
+
+  function addNode(text, fontSize, color, bg, name, suggestedBlockType, suggestedHeadingLevel) {
+    const key = normalize(text);
+    if (!key || seenKeys.has(key)) return;
+    seenKeys.add(key);
+    realNodes.push({ text: text.trim(), fontSize: fontSize || 14, color: color || '#020617', bg: bg || '#FFFFFF', name: name || '', suggestedBlockType: suggestedBlockType || null, suggestedHeadingLevel: suggestedHeadingLevel || null });
+  }
+
+  function gatherFromMeta(meta, inheritedBg) {
+    if (!meta) return;
+    const bg = meta.computedBackgroundColor || meta.backgroundColor || inheritedBg || '#FFFFFF';
+
+    if (meta.type === 'TEXT' && typeof meta.text === 'string' && meta.text.trim()) {
+      addNode(meta.text, meta.fontSize, meta.textColor || meta.computedTextColor, bg, meta.name, meta.suggestedBlockType, meta.suggestedHeadingLevel);
+      return; // TEXT nodes have no children
+    }
+
+    // Recurse into children first — they carry suggestedBlockType/Level
+    if (Array.isArray(meta.children)) {
+      for (const child of meta.children) gatherFromMeta(child, bg);
+    }
+
+    // allTextChildren catches text deeper than the children tree
+    if (Array.isArray(meta.allTextChildren)) {
+      for (const t of meta.allTextChildren) {
+        if (t.text && t.text.trim()) addNode(t.text, t.fontSize, t.color, bg, t.name, null, null);
+      }
+    }
+  }
+
+  for (const item of preparedItems) gatherFromMeta(item.metadata, '#FFFFFF');
+
+  // Match: does block text correspond to a real node?
+  function textsMatch(a, b) {
+    if (!a || !b) return false;
+    const na = normalize(a), nb = normalize(b);
+    return na === nb || na.includes(nb) || nb.includes(na);
+  }
+
+  function blockPrimaryText(block) {
+    if (['paragraph', 'heading', 'blockquote', 'footer'].includes(block.type)) return block.delta?.ops?.[0]?.insert || '';
+    if (block.type === 'button') return block.blockModel?.value || '';
+    return null; // structural — no text to check
+  }
+
+  // Step 1: keep AI blocks whose text exists in the real node set
+  const validated = rawBlocks.filter(block => {
+    const t = blockPrimaryText(block);
+    if (t === null) return true;
+    if (!t.trim()) return false;
+    return realNodes.some(r => textsMatch(t, r.text));
+  });
+
+  // Step 2: mark which real nodes are accounted for
+  const coveredKeys = new Set();
+  for (const block of validated) {
+    const t = blockPrimaryText(block);
+    if (t) realNodes.forEach(r => { if (textsMatch(t, r.text)) coveredKeys.add(normalize(r.text)); });
+  }
+
+  // Step 3: synthesize blocks for real nodes the AI missed
+  function inferTypeFromName(name, fontSize) {
+    const n = name.toLowerCase();
+    if (/\bh1\b|heading[\s_-]*1|headline/.test(n)) return { type: 'heading', level: 'h1' };
+    if (/\bh2\b|heading[\s_-]*2|subheadline/.test(n)) return { type: 'heading', level: 'h2' };
+    if (/\bh3\b|heading[\s_-]*3/.test(n)) return { type: 'heading', level: 'h3' };
+    if (/\bh4\b|heading[\s_-]*4/.test(n)) return { type: 'heading', level: 'h4' };
+    if (/\bh5\b|heading[\s_-]*5/.test(n)) return { type: 'heading', level: 'h5' };
+    if (/\bh6\b|heading[\s_-]*6/.test(n)) return { type: 'heading', level: 'h6' };
+    if (/\bheading\b/.test(n)) return { type: 'heading', level: 'h1' };
+    if (/footer|unsubscribe/.test(n)) return { type: 'footer', level: null };
+    if (/quote|blockquote/.test(n)) return { type: 'blockquote', level: null };
+    if (/\bbutton\b|\bcta\b/.test(n)) return { type: 'button', level: null };
+    if (fontSize >= 36) return { type: 'heading', level: 'h1' };
+    if (fontSize >= 30) return { type: 'heading', level: 'h2' };
+    if (fontSize >= 24) return { type: 'heading', level: 'h3' };
+    if (fontSize >= 20) return { type: 'heading', level: 'h4' };
+    return { type: 'paragraph', level: null };
+  }
+
+  function synthesize(r) {
+    let type = r.suggestedBlockType, level = r.suggestedHeadingLevel;
+    if (!type) ({ type, level } = inferTypeFromName(r.name, r.fontSize));
+    const uid = Math.random().toString(36).substring(2, 7) + Math.random().toString(36).substring(2, 7);
+    const base = {
+      type, uniqueId: uid,
+      backgroundColor: r.bg, textColor: r.color,
+      paddingTop: 10, paddingRight: 25, paddingBottom: 10, paddingLeft: 25,
+      fontSize: r.fontSize, lineHeight: 1.4,
+      borderColor: 'transparent', borderStyle: 'solid',
+      borderThickness: { top: 0, right: 0, bottom: 0, left: 0 },
+      borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 },
+      columnWidth: 100, layoutType: 0, isLocked: false, tags: [], blocks: [],
+    };
+    if (type === 'button') {
+      base.blockModel = { value: r.text, link: 'https://example.com', backgroundColor: r.color, color: '#FFFFFF', align: 'left', borderRadius: { topLeft: 6, topRight: 6, bottomLeft: 6, bottomRight: 6 }, innerPadding: { top: 10, right: 16, bottom: 10, left: 16 } };
+    } else {
+      if (type === 'heading') base.blockModel = { headingType: level || 'h2', align: 'left' };
+      else if (type === 'blockquote') base.blockModel = { borderColor: '#1D2D4D' };
+      else base.blockModel = { align: 'left' };
+      base.delta = { ops: [{ insert: r.text + '\n' }] };
+    }
+    return base;
+  }
+
+  const synthesized = realNodes.filter(r => !coveredKeys.has(normalize(r.text))).map(synthesize);
+
+  const dropped = rawBlocks.length - validated.length;
+  if (dropped > 0) console.log(`[legolas] Dropped ${dropped} hallucinated block(s)`);
+  if (synthesized.length > 0) console.log(`[legolas] Synthesized ${synthesized.length} missing block(s):`, synthesized.map(b => `${b.type}: "${(b.delta?.ops?.[0]?.insert || b.blockModel?.value || '').slice(0, 50)}"`));
+
+  return [...validated, ...synthesized];
+}
+
 // ─── Claude API call ────────────────────────────────────────────────────────────
 
 const CLAUDE_SYSTEM_PROMPT = `You convert Figma designs into Letterhead newsletter platform block JSON.
 
 APPROACH: Scan each design top-to-bottom, left-to-right. For every distinct piece of content you see, produce one block. A single design may yield multiple blocks. Never wrap content in layout containers — always output flat, individual content blocks.
 
+BLOCK TYPE DETECTION — follow this strict priority order:
+1. suggestedBlockType in the node metadata is authoritative — always use it when present.
+2. suggestedHeadingLevel in the node metadata is authoritative for heading level — ignore font size entirely when this field is set.
+3. Node name keywords: "Heading 3" → heading h3, "Rubric" or "Byline" → paragraph, "Button" or "CTA" → button, "Logo" → logo, "Footer" → footer, "Divider" → divider, "Quote" or "Blockquote" → blockquote.
+4. Font size is a last resort only when none of the above apply: ≥36px → h1, ≥30px → h2, ≥24px → h3, ≥20px → h4.
+
 BLOCK TYPES AND SCHEMAS (blockModel contents shown):
 
 paragraph — blockModel: { align: "left"|"center"|"right" }
   + top-level: delta: { ops: [{ insert: "text content\\n" }] }
+  Use for: body text, rubric, byline, caption, label, or any text that is not a heading/quote/footer.
 
-heading — blockModel: { headingType: "h1"|"h2"|"h3"|"h4"|"h5"|"h6", align }
+heading — blockModel: { headingType: "h1"|"h2"|"h3"|"h4"|"h5"|"h6", align: "left"|"center"|"right" }
   + top-level: delta: { ops: [{ insert: "heading text\\n" }] }
-  Size hint: h1=36px, h2=30px, h3=24px, h4=20px, h5=18px, h6=16px
 
 blockquote — blockModel: { borderColor: "#hex" }
   + top-level: delta: { ops: [{ insert: "quote text\\n" }] }
 
 button — blockModel: { value: "label", link: "https://example.com", backgroundColor: "#hex", color: "#hex", align: "left"|"center"|"right", borderRadius: { topLeft: 6, topRight: 6, bottomLeft: 6, bottomRight: 6 }, innerPadding: { top: 10, right: 16, bottom: 10, left: 16 } }
+  Use computedBackgroundColor and computedTextColor from metadata for button colors.
 
 image — blockModel: { src: "https://ucarecdn.com/placeholder.jpg", alt: "", link: "", width: 600, align: "left"|"center"|"right", imageSmartCrop: "original", hasOriginalImageWidth: false, originalSrc: "", borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 } }
 
-logo — same as image but width <= 300
+logo — same schema as image but width <= 300
 
 divider — blockModel: { color: "#hex", style: "solid"|"dashed"|"dotted", width: 1 }
-  (width = thickness in pixels)
+  (width = stroke thickness in pixels)
 
 youtube — blockModel: { link: "https://youtube.com/watch?v=...", src: "", alt: "", width: 600, align: "left", hasOriginalImageWidth: false, borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 } }
 
@@ -756,13 +889,13 @@ audio — blockModel: { audioUrl: "https://example.com/episode.mp3", title: "Epi
 footer — blockModel: { align: "left"|"center" }
   + top-level: delta: { ops: [{ insert: "Unsubscribe | Manage preferences\\n" }] }
 
-REQUIRED TOP-LEVEL FIELDS FOR EVERY BLOCK:
+REQUIRED TOP-LEVEL FIELDS — include ALL of these on every single block without exception. Never omit a field, even when the value is the default:
 {
-  "type": "<one of the types above>",
-  "uniqueId": "<random 10-char alphanumeric string>",
-  "blockModel": <per type, or null>,
-  "backgroundColor": "<hex color, default #FFFFFF>",
-  "textColor": "<hex color, default #020617>",
+  "type": "<block type>",
+  "uniqueId": "<random 10-char alphanumeric>",
+  "blockModel": <object per schema above>,
+  "backgroundColor": "<hex, default #FFFFFF>",
+  "textColor": "<hex, default #020617>",
   "paddingTop": <number, default 10>,
   "paddingRight": <number, default 25>,
   "paddingBottom": <number, default 10>,
@@ -780,17 +913,42 @@ REQUIRED TOP-LEVEL FIELDS FOR EVERY BLOCK:
   "blocks": []
 }
 
+EXAMPLE — a fully filled-in heading block. Use this as the template for field completeness:
+{
+  "type": "heading",
+  "uniqueId": "a3f9k2m1p8",
+  "blockModel": { "headingType": "h2", "align": "left" },
+  "backgroundColor": "#FFFFFF",
+  "textColor": "#1E293B",
+  "paddingTop": 16,
+  "paddingRight": 25,
+  "paddingBottom": 8,
+  "paddingLeft": 25,
+  "fontSize": 30,
+  "lineHeight": 1.4,
+  "borderColor": "transparent",
+  "borderStyle": "solid",
+  "borderThickness": { "top": 0, "right": 0, "bottom": 0, "left": 0 },
+  "borderRadius": { "topLeft": 0, "topRight": 0, "bottomLeft": 0, "bottomRight": 0 },
+  "columnWidth": 100,
+  "layoutType": 0,
+  "isLocked": false,
+  "tags": [],
+  "blocks": [],
+  "delta": { "ops": [{ "insert": "Why newsletters still win in 2025\\n" }] }
+}
+
 RULES:
 - Scan top-to-bottom. Each distinct content element → its own block.
-- A frame with a heading + paragraph + button → 3 separate blocks, not 1 layout block.
+- A frame containing a heading + paragraph + button → 3 separate blocks, never 1 layout block.
 - Do NOT use layout or container block types. Only use the content block types listed above.
-- Only emit a block for content you can clearly identify in the image. If you are unsure what something is, omit it entirely — never guess or use paragraph as a fallback.
-- Only emit a paragraph block when the design contains a clear body-text paragraph. Do not use paragraph for headings, captions, labels, or anything that better fits another block type.
-- Extract real colors, text content, and font sizes from the design.
+- Only emit a block for content you can clearly identify. If uncertain, omit it.
+- Extract real colors from the design. Prefer computedBackgroundColor and computedTextColor from metadata over raw fills.
+- Use allTextChildren from metadata to find text in deeply nested nodes that may not appear in direct children.
 - Always use "https://ucarecdn.com/placeholder.jpg" for image src fields.
-- Derive padding from visual spacing in the design.
+- Derive padding values from visual spacing visible in the design.
 - For text blocks, put the actual visible text into delta.ops[0].insert.
-- Return ONLY a valid JSON array — no markdown fences, no explanation, no comments.`;
+- OUTPUT RULE: return a raw JSON array and nothing else. No markdown fences, no prose, no comments, no trailing commas. The entire response must pass JSON.parse() directly.`;
 
 async function callClaudeVision(items, apiKey) {
   const content = [];
@@ -802,7 +960,7 @@ async function callClaudeVision(items, apiKey) {
     });
     content.push({
       type: 'text',
-      text: `Node name: "${items[0].nodeName}"\nNode metadata:\n${JSON.stringify(items[0].metadata, null, 2)}\n\nScan this design top-to-bottom. Return a JSON array with one block per distinct content element you find.`,
+      text: `Node name: "${items[0].nodeName}"\nNode metadata:\n${JSON.stringify(items[0].metadata, null, 2)}\n\nNode HTML structure:\n${items[0].html}\n\nScan this design top-to-bottom. Return a JSON array with one block per distinct content element you find.`,
     });
   } else {
     content.push({
@@ -812,13 +970,13 @@ async function callClaudeVision(items, apiKey) {
     items.forEach((item, i) => {
       content.push({ type: 'text', text: `\n=== Design ${i + 1}: "${item.nodeName}" ===` });
       content.push({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: item.base64 } });
-      content.push({ type: 'text', text: `Metadata:\n${JSON.stringify(item.metadata, null, 2)}` });
+      content.push({ type: 'text', text: `Metadata:\n${JSON.stringify(item.metadata, null, 2)}\n\nHTML structure:\n${item.html}` });
     });
     content.push({ type: 'text', text: `\nReturn a single JSON array containing all content blocks from all designs above, in top-to-bottom order.` });
   }
 
   const requestPayload = {
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-sonnet-4-6',
     max_tokens: 8192,
     system: CLAUDE_SYSTEM_PROMPT,
     messages: [{ role: 'user', content }],
@@ -881,7 +1039,7 @@ async function callOpenAiVision(items, apiKey) {
     userContent.push({ type: 'image_url', image_url: { url: 'data:image/png;base64,' + items[0].base64 } });
     userContent.push({
       type: 'text',
-      text: `Node name: "${items[0].nodeName}"\nNode metadata:\n${JSON.stringify(items[0].metadata, null, 2)}\n\nScan this design top-to-bottom. Return a JSON array with one block per distinct content element you find.`,
+      text: `Node name: "${items[0].nodeName}"\nNode metadata:\n${JSON.stringify(items[0].metadata, null, 2)}\n\nNode HTML structure:\n${items[0].html}\n\nScan this design top-to-bottom. Return a JSON array with one block per distinct content element you find.`,
     });
   } else {
     userContent.push({
@@ -891,7 +1049,7 @@ async function callOpenAiVision(items, apiKey) {
     items.forEach((item, i) => {
       userContent.push({ type: 'text', text: `\n=== Design ${i + 1}: "${item.nodeName}" ===` });
       userContent.push({ type: 'image_url', image_url: { url: 'data:image/png;base64,' + item.base64 } });
-      userContent.push({ type: 'text', text: `Metadata:\n${JSON.stringify(item.metadata, null, 2)}` });
+      userContent.push({ type: 'text', text: `Metadata:\n${JSON.stringify(item.metadata, null, 2)}\n\nHTML structure:\n${item.html}` });
     });
     userContent.push({ type: 'text', text: `\nReturn a single JSON array containing all content blocks from all designs above, in top-to-bottom order.` });
   }
@@ -904,13 +1062,10 @@ async function callOpenAiVision(items, apiKey) {
       { role: 'user', content: userContent },
     ],
   };
-  console.log('[legolas] → OpenAI request', {
-    url: 'https://api.openai.com/v1/chat/completions',
-    model: requestBody.model,
-    contentParts: userContent.map(p =>
-      p.type === 'image_url' ? { type: 'image_url', url: '[base64 PNG]' } : p
-    ),
-  });
+  console.log('[legolas] → OpenAI payload', JSON.stringify(requestBody, (key, value) => {
+    if (key === 'url' && typeof value === 'string' && value.startsWith('data:image')) return '[base64 PNG]';
+    return value;
+  }, 2));
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',

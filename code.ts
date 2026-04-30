@@ -531,7 +531,119 @@ async function createVisualBlock(block: BlockData): Promise<FrameNode> {
   return outer;
 }
 
+// ─── Figma → Letterhead: HTML serializer ─────────────────────────────────────
+
+function serializeNodeToHtml(node: SceneNode, depth = 0): string {
+  if (depth > 4) return '';
+  if (!node.visible) return '';
+  const indent = '  '.repeat(depth);
+
+  if (node.type === 'TEXT') {
+    const t = node as TextNode;
+    const fontSize = typeof t.fontSize === 'number' ? t.fontSize : 14;
+    const color = nodeFillHex(t) || '#000000';
+    const rawAlign = t.textAlignHorizontal as string;
+    const align = rawAlign === 'CENTER' ? 'center' : rawAlign === 'RIGHT' ? 'right' : 'left';
+    const isBold = t.fontName !== figma.mixed && (t.fontName as FontName).style.toLowerCase().includes('bold');
+    const isItalic = t.fontName !== figma.mixed && (t.fontName as FontName).style.toLowerCase().includes('italic');
+    const tag = fontSize >= 36 ? 'h1' : fontSize >= 30 ? 'h2' : fontSize >= 24 ? 'h3' : fontSize >= 20 ? 'h4' : 'p';
+    const style = `font-size:${fontSize}px;color:${color};font-weight:${isBold ? 'bold' : 'normal'};font-style:${isItalic ? 'italic' : 'normal'};text-align:${align};margin:0`;
+    const text = t.characters.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return `${indent}<${tag} style="${style}">${text}</${tag}>`;
+  }
+
+  if (node.type === 'RECTANGLE') {
+    const r = node as RectangleNode;
+    const bg = nodeFillHex(r) || 'transparent';
+    const radius = typeof r.cornerRadius === 'number' ? r.cornerRadius : r.topLeftRadius;
+    const stroke = nodeStrokeHex(r);
+    const sw = (r as unknown as { strokeWeight?: number }).strokeWeight;
+    const borderPart = stroke && sw ? `;border:${sw}px solid ${stroke}` : '';
+    return `${indent}<div style="width:${Math.round(r.width)}px;height:${Math.round(r.height)}px;background:${bg};border-radius:${radius}px${borderPart}"></div>`;
+  }
+
+  if (node.type === 'ELLIPSE') {
+    const e = node as EllipseNode;
+    const bg = nodeFillHex(e) || 'transparent';
+    return `${indent}<div style="width:${Math.round(e.width)}px;height:${Math.round(e.height)}px;background:${bg};border-radius:50%"></div>`;
+  }
+
+  if (node.type === 'LINE') {
+    const stroke = nodeStrokeHex(node) || '#CCCCCC';
+    const sw = (node as unknown as { strokeWeight?: number }).strokeWeight || 1;
+    return `${indent}<hr style="width:100%;height:${sw}px;background:${stroke};border:none;margin:0">`;
+  }
+
+  if (node.type === 'FRAME' || node.type === 'GROUP' || node.type === 'COMPONENT' || node.type === 'INSTANCE') {
+    const children = (node as unknown as { children: ReadonlyArray<SceneNode> }).children;
+    const parts: string[] = [];
+
+    if (node.type === 'FRAME') {
+      const f = node as FrameNode;
+      const bg = nodeFillHex(f);
+      if (f.layoutMode === 'HORIZONTAL' || f.layoutMode === 'VERTICAL') {
+        parts.push(`display:flex;flex-direction:${f.layoutMode === 'HORIZONTAL' ? 'row' : 'column'}`);
+        if (f.itemSpacing) parts.push(`gap:${f.itemSpacing}px`);
+        if (f.paddingTop || f.paddingRight || f.paddingBottom || f.paddingLeft) {
+          parts.push(`padding:${f.paddingTop}px ${f.paddingRight}px ${f.paddingBottom}px ${f.paddingLeft}px`);
+        }
+      }
+      if (bg) parts.push(`background:${bg}`);
+      const radius = typeof f.cornerRadius === 'number' ? f.cornerRadius : f.topLeftRadius;
+      if (radius > 0) parts.push(`border-radius:${radius}px`);
+      const stroke = nodeStrokeHex(f);
+      const sw = (f as unknown as { strokeWeight?: number }).strokeWeight;
+      if (stroke && sw) parts.push(`border:${sw}px solid ${stroke}`);
+    }
+
+    const childHtml = Array.from(children)
+      .slice(0, 20)
+      .map(c => serializeNodeToHtml(c, depth + 1))
+      .filter(s => s.length > 0)
+      .join('\n');
+
+    return `${indent}<div style="${parts.join(';')}">\n${childHtml}\n${indent}</div>`;
+  }
+
+  return '';
+}
+
 // ─── Figma → Letterhead: node metadata extractor ─────────────────────────────
+
+function inferSuggestedBlock(name: string): { suggestedBlockType: string | null; suggestedHeadingLevel: string | null } {
+  const n = name.toLowerCase().trim();
+  if (/\bh1\b|heading[\s_-]*1|headline/.test(n)) return { suggestedBlockType: 'heading', suggestedHeadingLevel: 'h1' };
+  if (/\bh2\b|heading[\s_-]*2|subheadline/.test(n)) return { suggestedBlockType: 'heading', suggestedHeadingLevel: 'h2' };
+  if (/\bh3\b|heading[\s_-]*3/.test(n)) return { suggestedBlockType: 'heading', suggestedHeadingLevel: 'h3' };
+  if (/\bh4\b|heading[\s_-]*4/.test(n)) return { suggestedBlockType: 'heading', suggestedHeadingLevel: 'h4' };
+  if (/\bh5\b|heading[\s_-]*5/.test(n)) return { suggestedBlockType: 'heading', suggestedHeadingLevel: 'h5' };
+  if (/\bh6\b|heading[\s_-]*6/.test(n)) return { suggestedBlockType: 'heading', suggestedHeadingLevel: 'h6' };
+  if (/\bheading\b/.test(n)) return { suggestedBlockType: 'heading', suggestedHeadingLevel: 'h1' };
+  if (/paragraph|body[\s_-]?text|\bcopy\b|\brubric\b|\bbyline\b|\bcaption\b/.test(n)) return { suggestedBlockType: 'paragraph', suggestedHeadingLevel: null };
+  if (/\bbutton\b|\bcta\b/.test(n)) return { suggestedBlockType: 'button', suggestedHeadingLevel: null };
+  if (/\blogo\b/.test(n)) return { suggestedBlockType: 'logo', suggestedHeadingLevel: null };
+  if (/\bimage\b|\bphoto\b|\bimg\b/.test(n)) return { suggestedBlockType: 'image', suggestedHeadingLevel: null };
+  if (/divider|separator|\bline\b|\bhr\b/.test(n)) return { suggestedBlockType: 'divider', suggestedHeadingLevel: null };
+  if (/quote|blockquote/.test(n)) return { suggestedBlockType: 'blockquote', suggestedHeadingLevel: null };
+  if (/\bfooter\b/.test(n)) return { suggestedBlockType: 'footer', suggestedHeadingLevel: null };
+  return { suggestedBlockType: null, suggestedHeadingLevel: null };
+}
+
+function collectAllTextNodes(node: SceneNode): Array<{ name: string; text: string; fontSize: number; color: string | null }> {
+  const results: Array<{ name: string; text: string; fontSize: number; color: string | null }> = [];
+  if (!node.visible) return results;
+  if (node.type === 'TEXT') {
+    const t = node as TextNode;
+    results.push({ name: t.name, text: t.characters, fontSize: typeof t.fontSize === 'number' ? t.fontSize : 14, color: nodeFillHex(t) });
+    return results;
+  }
+  if ('children' in node) {
+    for (const child of Array.from((node as unknown as { children: ReadonlyArray<SceneNode> }).children)) {
+      results.push(...collectAllTextNodes(child));
+    }
+  }
+  return results;
+}
 
 function extractNodeMetadata(node: SceneNode, depth = 0): Record<string, unknown> {
   const meta: Record<string, unknown> = {
@@ -541,8 +653,12 @@ function extractNodeMetadata(node: SceneNode, depth = 0): Record<string, unknown
     height: Math.round(node.height),
   };
 
+  const { suggestedBlockType, suggestedHeadingLevel } = inferSuggestedBlock(node.name);
+  if (suggestedBlockType) meta.suggestedBlockType = suggestedBlockType;
+  if (suggestedHeadingLevel) meta.suggestedHeadingLevel = suggestedHeadingLevel;
+
   const fill = nodeFillHex(node);
-  if (fill) meta.backgroundColor = fill;
+  if (fill) { meta.backgroundColor = fill; meta.computedBackgroundColor = fill; }
 
   const stroke = nodeStrokeHex(node);
   if (stroke) {
@@ -554,12 +670,10 @@ function extractNodeMetadata(node: SceneNode, depth = 0): Record<string, unknown
     const t = node as TextNode;
     meta.text = t.characters;
     meta.fontSize = typeof t.fontSize === 'number' ? t.fontSize : 14;
-    if (t.fontName !== figma.mixed) {
-      meta.fontStyle = (t.fontName as FontName).style;
-    }
+    if (t.fontName !== figma.mixed) meta.fontStyle = (t.fontName as FontName).style;
     meta.textAlign = t.textAlignHorizontal;
     const textFill = nodeFillHex(t);
-    if (textFill) meta.textColor = textFill;
+    if (textFill) { meta.textColor = textFill; meta.computedTextColor = textFill; }
   }
 
   if ('layoutMode' in node) {
@@ -574,9 +688,27 @@ function extractNodeMetadata(node: SceneNode, depth = 0): Record<string, unknown
     else if (f.topLeftRadius > 0) meta.cornerRadius = { tl: f.topLeftRadius, tr: f.topRightRadius, bl: f.bottomLeftRadius, br: f.bottomRightRadius };
   }
 
-  if (depth < 2 && 'children' in node) {
+  if (depth < 4 && 'children' in node) {
     const children = (node as unknown as { children: ReadonlyArray<SceneNode> }).children;
-    meta.children = Array.from(children).slice(0, 20).map(c => extractNodeMetadata(c, depth + 1));
+    const visibleChildren = Array.from(children).filter(c => c.visible);
+    meta.children = visibleChildren.slice(0, 20).map(c => extractNodeMetadata(c, depth + 1));
+
+    const allTexts = collectAllTextNodes(node);
+
+    if (allTexts.length > 0) {
+      meta.allTextChildren = allTexts;
+      if (!meta.computedTextColor) {
+        const firstColor = allTexts.find(t => t.color)?.color;
+        if (firstColor) meta.computedTextColor = firstColor;
+      }
+    }
+
+    if (!meta.computedBackgroundColor) {
+      for (const child of visibleChildren) {
+        const childFill = nodeFillHex(child);
+        if (childFill) { meta.computedBackgroundColor = childFill; break; }
+      }
+    }
   }
 
   return meta;
@@ -783,7 +915,7 @@ figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode
       figma.ui.postMessage({ type: 'selection-exported', items: [] });
       return;
     }
-    const items: Array<{ nodeId: string; nodeName: string; imageBytes: Uint8Array; metadata: Record<string, unknown> }> = [];
+    const items: Array<{ nodeId: string; nodeName: string; imageBytes: Uint8Array; metadata: Record<string, unknown>; html: string }> = [];
     for (const node of figma.currentPage.selection) {
       try {
         const maxDim = 1200;
@@ -791,7 +923,8 @@ figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode
         const imageBytes = await (node as SceneNode & { exportAsync: (settings: ExportSettingsImage) => Promise<Uint8Array> })
           .exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: scale } });
         const metadata = extractNodeMetadata(node);
-        items.push({ nodeId: node.id, nodeName: node.name, imageBytes, metadata });
+        const html = serializeNodeToHtml(node);
+        items.push({ nodeId: node.id, nodeName: node.name, imageBytes, metadata, html });
       } catch (_) { /* skip unexportable nodes */ }
     }
     figma.ui.postMessage({ type: 'selection-exported', items });
