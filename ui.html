@@ -515,10 +515,33 @@
     Add your API key above to use AI Analyze.
   </div>
 
+  <!-- Block Defaults (shared with builder) -->
+  <div class="section">
+    <div class="section-hd" onclick="toggleSection('defs-imp')">
+      Block Defaults <span id="defs-imp-icon">▶</span>
+    </div>
+    <div class="section-bd hidden" id="defs-imp-bd">
+      <div class="def-tabs">
+        <button class="def-tab active" id="dtab-imp-paragraph" onclick="showDefsTabImp('paragraph')">Para</button>
+        <button class="def-tab" id="dtab-imp-h1" onclick="showDefsTabImp('h1')">H1</button>
+        <button class="def-tab" id="dtab-imp-h2" onclick="showDefsTabImp('h2')">H2</button>
+        <button class="def-tab" id="dtab-imp-h3" onclick="showDefsTabImp('h3')">H3</button>
+        <button class="def-tab" id="dtab-imp-h4" onclick="showDefsTabImp('h4')">H4</button>
+        <button class="def-tab" id="dtab-imp-h5" onclick="showDefsTabImp('h5')">H5</button>
+        <button class="def-tab" id="dtab-imp-h6" onclick="showDefsTabImp('h6')">H6</button>
+      </div>
+      <div id="dpanel-imp"></div>
+    </div>
+  </div>
+
   <!-- Analyze buttons -->
   <div class="analyze-row">
     <button class="btn-ai" id="btn-ai-analyze" onclick="runAiAnalyze()">✦ AI Analyze</button>
     <button class="btn-quick" onclick="runQuickAnalyze()">◎ Quick</button>
+  </div>
+  <div class="chk" style="margin:5px 0 2px">
+    <input type="checkbox" id="force-ai-styles" onchange="setForceAiStyles(this.checked)">
+    <label for="force-ai-styles">Force Block Defaults on AI styles</label>
   </div>
 
   <div id="importer-results"></div>
@@ -640,6 +663,7 @@ const BLOCK_BADGE_COLORS = {
 };
 
 let detectedBlocks = [];
+let forceAiStyles = (() => { try { return localStorage.getItem('lh_force_ai_styles') === 'true'; } catch(e) { return false; } })();
 
 // ─── Quick (heuristic) analyze ─────────────────────────────────────────────────
 function runQuickAnalyze() {
@@ -1155,10 +1179,40 @@ function uint8ToBase64(bytes) {
 }
 
 
+function setForceAiStyles(val) {
+  forceAiStyles = val;
+  try { localStorage.setItem('lh_force_ai_styles', String(val)); } catch(e) {}
+}
+
+function applyBlockDefaults(block) {
+  let d;
+  if (block.type === 'heading') {
+    const level = block.blockModel?.headingType || 'h2';
+    d = blockDefaults.heading[level] || blockDefaults.heading.h2;
+  } else if (['paragraph', 'blockquote', 'footer'].includes(block.type)) {
+    d = blockDefaults.paragraph;
+  } else {
+    return block;
+  }
+  return Object.assign({}, block, {
+    textColor: d.textColor,
+    backgroundColor: d.backgroundColor,
+    paddingTop: d.paddingTop,
+    paddingRight: d.paddingRight,
+    paddingBottom: d.paddingBottom,
+    paddingLeft: d.paddingLeft,
+    fontSize: d.fontSize,
+    lineHeight: d.lineHeight,
+    defaultFont: d.font,
+    fontFallback: d.fontFallback,
+  });
+}
+
 function generateBlocks() {
   if (!detectedBlocks.length) return;
+  const blocks = detectedBlocks.map(d => forceAiStyles ? applyBlockDefaults(d.block) : d.block);
   parent.postMessage({
-    pluginMessage: { type: 'render-blocks', blocks: detectedBlocks.map(d => d.block) }
+    pluginMessage: { type: 'render-blocks', blocks }
   }, '*');
 }
 
@@ -1250,9 +1304,9 @@ function getDefsTarget(tab) {
 
 let activeDefsTab = 'paragraph';
 
-function renderDefsPanel(tab) {
+function renderDefsPanel(tab, pfx) {
   const d = getDefsTarget(tab);
-  const p = 'dp' + tab;
+  const p = (pfx || 'dp') + tab;
   return `
     <div class="grid-2">
       <div class="form-group"><label>Font Size</label>
@@ -1317,7 +1371,18 @@ function showDefsTab(tab) {
     if (btn) btn.classList.toggle('active', t === tab);
   });
   const panel = document.getElementById('dpanel');
-  if (panel) panel.innerHTML = renderDefsPanel(tab);
+  if (panel) panel.innerHTML = renderDefsPanel(tab, 'dp');
+}
+
+let activeDefsTabImp = 'paragraph';
+function showDefsTabImp(tab) {
+  activeDefsTabImp = tab;
+  ['paragraph','h1','h2','h3','h4','h5','h6'].forEach(t => {
+    const btn = document.getElementById('dtab-imp-' + t);
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  const panel = document.getElementById('dpanel-imp');
+  if (panel) panel.innerHTML = renderDefsPanel(tab, 'dpi');
 }
 
 function applyDefaults(type, htLevel) {
@@ -2137,7 +2202,9 @@ function cancel() {
 
 // Init
 showDefsTab('paragraph');
+showDefsTabImp('paragraph');
 onTypeChange();
+document.getElementById('force-ai-styles').checked = forceAiStyles;
 </script>
 </body>
 </html>
