@@ -544,6 +544,11 @@
     <label for="force-ai-styles">Force Block Defaults on AI styles</label>
   </div>
 
+  <div class="toggle-row" style="margin-top:8px">
+    <button class="toggle-btn active" id="ai-mode-visual" onclick="setAiMode('visual')">◈ Visual Preview</button>
+    <button class="toggle-btn" id="ai-mode-json" onclick="setAiMode('json')">{ } JSON</button>
+  </div>
+
   <div id="importer-results"></div>
 
   <div style="height:8px"></div>
@@ -1212,7 +1217,7 @@ function generateBlocks() {
   if (!detectedBlocks.length) return;
   const blocks = detectedBlocks.map(d => forceAiStyles ? applyBlockDefaults(d.block) : d.block);
   parent.postMessage({
-    pluginMessage: { type: 'render-blocks', blocks }
+    pluginMessage: { type: 'render-blocks', blocks, outputMode: aiOutputMode }
   }, '*');
 }
 
@@ -1222,6 +1227,14 @@ function setMode(mode) {
   outputMode = mode;
   document.getElementById('mode-json').classList.toggle('active', mode === 'json');
   document.getElementById('mode-visual').classList.toggle('active', mode === 'visual');
+}
+
+// ─── Importer: output mode ────────────────────────────────────────────────────
+let aiOutputMode = 'visual';
+function setAiMode(mode) {
+  aiOutputMode = mode;
+  document.getElementById('ai-mode-json').classList.toggle('active', mode === 'json');
+  document.getElementById('ai-mode-visual').classList.toggle('active', mode === 'visual');
 }
 
 // ─── Builder: color helpers ───────────────────────────────────────────────────

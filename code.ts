@@ -950,13 +950,14 @@ figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode
 
   if (msg.type === 'render-blocks' && msg.blocks && msg.blocks.length > 0) {
     const blocks = msg.blocks as BlockData[];
+    const mode = msg.outputMode || 'visual';
     try { await loadFonts(); } catch (_) { /* continue */ }
     const center = figma.viewport.center;
     let y = Math.round(center.y - (blocks.length * 50));
     const x = Math.round(center.x - 300);
     const created: FrameNode[] = [];
     for (const block of blocks) {
-      const frame = await createVisualBlock(block);
+      const frame = mode === 'json' ? await createJsonFrame(block) : await createVisualBlock(block);
       frame.x = x; frame.y = y;
       figma.currentPage.appendChild(frame);
       y += frame.height + 16;
@@ -966,7 +967,7 @@ figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode
       figma.currentPage.selection = created;
       figma.viewport.scrollAndZoomIntoView(created);
     }
-    figma.notify(`Generated ${blocks.length} Letterhead block${blocks.length > 1 ? 's' : ''}`, { timeout: 2000 });
+    figma.notify(`Generated ${blocks.length} Letterhead block${blocks.length > 1 ? 's' : ''} (${mode})`, { timeout: 2000 });
   }
 
   if (msg.type === 'cancel') {
