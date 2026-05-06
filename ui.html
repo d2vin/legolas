@@ -151,6 +151,20 @@
   .btn-primary:disabled { background: #c7d2fe; cursor: not-allowed; }
   .btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
   .btn-secondary:hover { background: #e2e8f0; }
+  .btn-success { background: #059669; color: #fff; }
+  .btn-success:hover { background: #047857; }
+  .btn-success:disabled { background: #6ee7b7; cursor: not-allowed; }
+
+  /* ─── Send to Letterhead toast ──────────────────────────────────────────────── */
+  .lh-toast {
+    position: fixed; bottom: 60px; left: 12px; right: 12px;
+    padding: 8px 10px; border-radius: 5px; font-size: 11px; font-weight: 600;
+    z-index: 999; text-align: center; pointer-events: none;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .lh-toast.show { opacity: 1; }
+  .lh-toast.ok { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+  .lh-toast.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
   /* ─── Importer page ──────────────────────────────────────────────────────── */
   .hint {
@@ -475,6 +489,28 @@
   </div>
 
   <div id="specific"></div>
+
+  <!-- Letterhead API section -->
+  <div class="section" style="margin-top:8px">
+    <div class="section-hd" onclick="toggleSection('lh-api')">
+      Send to Letterhead <span id="lh-api-icon">▶</span>
+    </div>
+    <div class="section-bd hidden" id="lh-api-bd">
+      <div class="form-group">
+        <label>API Key</label>
+        <input type="password" id="lh-api-key" placeholder="Bearer token" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Base URL</label>
+        <input type="url" id="lh-base-url" value="https://qa-devin.api.tryletterhead.dev">
+      </div>
+      <div class="form-group">
+        <label>Letter Title <span style="font-weight:400;text-transform:none">(optional)</span></label>
+        <input type="text" id="lh-letter-title" placeholder="My Newsletter">
+      </div>
+    </div>
+  </div>
+
   <div style="height:8px"></div>
 </div>
 
@@ -551,18 +587,44 @@
 
   <div id="importer-results"></div>
 
+  <!-- Letterhead API section (importer) -->
+  <div class="section" id="lh-api-imp-wrap" style="margin-top:8px;display:none">
+    <div class="section-hd" onclick="toggleSection('lh-api-imp')">
+      Send to Letterhead <span id="lh-api-imp-icon">▶</span>
+    </div>
+    <div class="section-bd hidden" id="lh-api-imp-bd">
+      <div class="form-group">
+        <label>API Key</label>
+        <input type="password" id="lh-api-key-imp" placeholder="Bearer token" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Base URL</label>
+        <input type="url" id="lh-base-url-imp" value="https://qa-devin.api.tryletterhead.dev">
+      </div>
+      <div class="form-group">
+        <label>Letter Title <span style="font-weight:400;text-transform:none">(optional)</span></label>
+        <input type="text" id="lh-letter-title-imp" placeholder="My Newsletter">
+      </div>
+    </div>
+  </div>
+
   <div style="height:8px"></div>
 </div>
+
+<!-- ─── Toast ──────────────────────────────────────────────────────────────── -->
+<div class="lh-toast" id="lh-toast"></div>
 
 <!-- ─── Actions: Builder ─────────────────────────────────────────────────────── -->
 <div class="actions" id="actions-builder">
   <button class="btn btn-secondary" onclick="cancel()">Cancel</button>
+  <button class="btn btn-success" id="btn-send-lh" onclick="sendToLetterhead()">↑ Send Letter</button>
   <button class="btn btn-primary" onclick="createBlock()">Create Block</button>
 </div>
 
 <!-- ─── Actions: Importer ────────────────────────────────────────────────────── -->
 <div class="actions" id="actions-importer" style="display:none">
   <button class="btn btn-secondary" onclick="cancel()">Cancel</button>
+  <button class="btn btn-success" id="btn-send-lh-imp" disabled onclick="sendToLetterheadImporter()">↑ Send Letter</button>
   <button class="btn btn-primary" id="btn-generate" disabled onclick="generateBlocks()">Generate Blocks</button>
 </div>
 
@@ -587,6 +649,9 @@ window.onmessage = (event) => {
   if (msg.type === 'openai-key-loaded') {
     onOpenaiKeyLoaded(msg.key || '');
   }
+  if (msg.type === 'lh-key-loaded') {
+    onLhKeyLoaded(msg.key || '', msg.baseUrl || '');
+  }
   if (msg.type === 'selection-analyzed') {
     renderAnalyzedBlocks(msg.blocks || [], 'heuristic');
   }
@@ -598,6 +663,21 @@ window.onmessage = (event) => {
 // ─── API key management ────────────────────────────────────────────────────────
 let storedApiKey = '';      // Anthropic
 let storedOpenaiKey = '';   // OpenAI
+let savedLhApiKey = '';
+let savedLhBaseUrl = '';
+
+function onLhKeyLoaded(key, baseUrl) {
+  savedLhApiKey = key;
+  savedLhBaseUrl = baseUrl;
+  if (key) {
+    document.getElementById('lh-api-key').placeholder = '(saved — paste to update)';
+    document.getElementById('lh-api-key-imp').placeholder = '(saved — paste to update)';
+  }
+  if (baseUrl) {
+    document.getElementById('lh-base-url').value = baseUrl;
+    document.getElementById('lh-base-url-imp').value = baseUrl;
+  }
+}
 let activeProvider = 'openai';
 
 function onApiKeyLoaded(key) {
@@ -1131,6 +1211,8 @@ function renderAnalyzedBlocks(blocks, source) {
         No recognizable blocks found.<br>Select layers in Figma and try again.
       </div>`;
     btn.disabled = true;
+    document.getElementById('btn-send-lh-imp').disabled = true;
+    document.getElementById('lh-api-imp-wrap').style.display = 'none';
     return;
   }
 
@@ -1157,6 +1239,16 @@ function renderAnalyzedBlocks(blocks, source) {
 
   btn.disabled = false;
   btn.textContent = `Generate ${blocks.length} Block${blocks.length > 1 ? 's' : ''}`;
+
+  const sendBtn = document.getElementById('btn-send-lh-imp');
+  sendBtn.disabled = false;
+  sendBtn.textContent = `↑ Send Letter`;
+
+  const wrap = document.getElementById('lh-api-imp-wrap');
+  wrap.style.display = '';
+  // Auto-open the section so the user sees the fields
+  const bd = document.getElementById('lh-api-imp-bd');
+  if (bd.classList.contains('hidden')) toggleSection('lh-api-imp');
 }
 
 function getPreview(block) {
@@ -2211,6 +2303,160 @@ function createBlock() {
 
 function cancel() {
   parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*');
+}
+
+// ─── Send to Letterhead ───────────────────────────────────────────────────────
+function lhShowToast(msg, isErr) {
+  const t = document.getElementById('lh-toast');
+  t.textContent = msg;
+  t.className = 'lh-toast show ' + (isErr ? 'err' : 'ok');
+  clearTimeout(lhShowToast._tid);
+  lhShowToast._tid = setTimeout(() => { t.classList.remove('show'); }, 4000);
+}
+
+async function sendToLetterhead() {
+  const apiKey = (document.getElementById('lh-api-key').value || '').trim()
+    || savedLhApiKey;
+  const baseUrl = (document.getElementById('lh-base-url').value || '').trim()
+    || savedLhBaseUrl || 'https://qa-devin.api.tryletterhead.dev';
+  const title = (document.getElementById('lh-letter-title').value || '').trim();
+
+  if (!apiKey) {
+    // Open the section so the user can see the API key field
+    const bd = document.getElementById('lh-api-bd');
+    if (bd.classList.contains('hidden')) toggleSection('lh-api');
+    lhShowToast('Enter a Letterhead API key first.', true);
+    return;
+  }
+
+  // Save key + URL for next time
+  savedLhApiKey = apiKey;
+  savedLhBaseUrl = baseUrl;
+  parent.postMessage({ pluginMessage: { type: 'save-lh-key', key: apiKey, baseUrl } }, '*');
+
+  const block = buildBlock();
+  const blocksArray = block ? [block] : [];
+  const blocksString = typeof blocksArray === 'string' ? blocksArray : JSON.stringify(blocksArray);
+
+  if (blocksString === '[]') {
+    console.warn('[LH] blocks array is empty — nothing to send');
+    lhShowToast('No block to send.', true);
+    return;
+  }
+
+  const body = { blocks: blocksString };
+  if (title) body.title = title;
+
+  console.log('[LH] POST', baseUrl + '/api/v3/letters');
+  console.log('[LH] body.title:', body.title);
+  console.log('[LH] body.blocks (string):', body.blocks);
+  console.log('[LH] body.blocks (parsed):', JSON.parse(body.blocks));
+
+  const btn = document.getElementById('btn-send-lh');
+  btn.disabled = true;
+  btn.textContent = '…';
+
+  try {
+    const res = await fetch(baseUrl + '/api/v3/letters', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    console.log('[LH] response:', res.status, json);
+    if (!res.ok) {
+      throw new Error(json.message || json.error || ('HTTP ' + res.status));
+    }
+    console.log('[LH] full response body:', JSON.stringify(json, null, 2));
+    console.log('[LH] blocks in response:', json?.items?.blocks);
+    const id = json?.items?.uniqueId || json?.items?.id || json?.uniqueId || json?.id || '';
+    const returnedBlocks = (() => { try { return JSON.parse(json?.items?.blocks || '[]'); } catch { return []; } })();
+    if (returnedBlocks.length <= 1 && returnedBlocks[0]?.type === 'view_in_browser') {
+      lhShowToast('Warning: letter created but blocks may not have saved. Check console.', true);
+    } else {
+      lhShowToast('Letter created' + (id ? ' · ' + id : '') + ' ✓', false);
+    }
+  } catch(err) {
+    lhShowToast('Error: ' + (err.message || String(err)), true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↑ Send Letter';
+  }
+}
+
+async function sendToLetterheadImporter() {
+  if (!detectedBlocks.length) return;
+
+  const apiKey = (document.getElementById('lh-api-key-imp').value || '').trim()
+    || savedLhApiKey;
+  const baseUrl = (document.getElementById('lh-base-url-imp').value || '').trim()
+    || savedLhBaseUrl || 'https://qa-devin.api.tryletterhead.dev';
+  const title = (document.getElementById('lh-letter-title-imp').value || '').trim();
+
+  if (!apiKey) {
+    const bd = document.getElementById('lh-api-imp-bd');
+    if (bd.classList.contains('hidden')) toggleSection('lh-api-imp');
+    lhShowToast('Enter a Letterhead API key first.', true);
+    return;
+  }
+
+  savedLhApiKey = apiKey;
+  savedLhBaseUrl = baseUrl;
+  parent.postMessage({ pluginMessage: { type: 'save-lh-key', key: apiKey, baseUrl } }, '*');
+
+  const blocksArray = detectedBlocks.map(d => forceAiStyles ? applyBlockDefaults(d.block) : d.block);
+  const blocksString = typeof blocksArray === 'string' ? blocksArray : JSON.stringify(blocksArray);
+
+  if (blocksString === '[]') {
+    console.warn('[LH importer] blocks array is empty — nothing to send');
+    lhShowToast('No blocks to send.', true);
+    return;
+  }
+
+  const body = { blocks: blocksString };
+  if (title) body.title = title;
+
+  console.log('[LH importer] POST', baseUrl + '/api/v3/letters');
+  console.log('[LH importer] body.title:', body.title);
+  console.log('[LH importer] body.blocks (string):', body.blocks);
+  console.log('[LH importer] body.blocks (parsed):', JSON.parse(body.blocks));
+
+  const btn = document.getElementById('btn-send-lh-imp');
+  btn.disabled = true;
+  btn.textContent = '…';
+
+  try {
+    const res = await fetch(baseUrl + '/api/v3/letters', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    console.log('[LH importer] response:', res.status, json);
+    if (!res.ok) {
+      throw new Error(json.message || json.error || ('HTTP ' + res.status));
+    }
+    console.log('[LH importer] full response body:', JSON.stringify(json, null, 2));
+    console.log('[LH importer] blocks in response:', json?.items?.blocks);
+    const id = json?.items?.uniqueId || json?.items?.id || json?.uniqueId || json?.id || '';
+    const returnedBlocks = (() => { try { return JSON.parse(json?.items?.blocks || '[]'); } catch { return []; } })();
+    if (returnedBlocks.length <= 1 && returnedBlocks[0]?.type === 'view_in_browser') {
+      lhShowToast('Warning: letter created but blocks may not have saved. Check console.', true);
+    } else {
+      lhShowToast('Letter created' + (id ? ' · ' + id : '') + ' ✓', false);
+    }
+  } catch(err) {
+    lhShowToast('Error: ' + (err.message || String(err)), true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↑ Send Letter';
+  }
 }
 
 // Init

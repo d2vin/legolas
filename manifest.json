@@ -13,7 +13,9 @@
   "networkAccess": {
     "allowedDomains": [
       "https://api.anthropic.com",
-      "https://api.openai.com"
+      "https://api.openai.com",
+      "https://*.api.tryletterhead.dev",
+      "https://*.api.tryletterhead.com"
     ]
   }
 }

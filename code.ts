@@ -11,6 +11,12 @@ figma.clientStorage.getAsync('anthropic_api_key').then(key => {
 figma.clientStorage.getAsync('openai_api_key').then(key => {
   figma.ui.postMessage({ type: 'openai-key-loaded', key: key || '' });
 }).catch(() => {});
+Promise.all([
+  figma.clientStorage.getAsync('lh_api_key'),
+  figma.clientStorage.getAsync('lh_base_url'),
+]).then(([key, baseUrl]) => {
+  figma.ui.postMessage({ type: 'lh-key-loaded', key: key || '', baseUrl: baseUrl || '' });
+}).catch(() => {});
 
 // ─── Hex: Letterhead → Figma ──────────────────────────────────────────────────
 
@@ -900,7 +906,7 @@ function analyzeSelection(): AnalyzedBlock[] {
 
 // ─── Message handler ──────────────────────────────────────────────────────────
 
-figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode?: string; blocks?: unknown[]; key?: string }) => {
+figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode?: string; blocks?: unknown[]; key?: string; baseUrl?: string }) => {
 
   if (msg.type === 'save-api-key') {
     await figma.clientStorage.setAsync('anthropic_api_key', msg.key || '');
@@ -908,6 +914,11 @@ figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode
 
   if (msg.type === 'save-openai-key') {
     await figma.clientStorage.setAsync('openai_api_key', msg.key || '');
+  }
+
+  if (msg.type === 'save-lh-key') {
+    await figma.clientStorage.setAsync('lh_api_key', msg.key || '');
+    await figma.clientStorage.setAsync('lh_base_url', msg.baseUrl || '');
   }
 
   if (msg.type === 'export-selection') {
