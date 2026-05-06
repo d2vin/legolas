@@ -732,6 +732,12 @@ function baseBlock(type: string, bg: string): BlockData {
     borderThickness: { top: 0, right: 0, bottom: 0, left: 0 },
     borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 },
     columnWidth: 100, layoutType: 0, isLocked: false, tags: [],
+    defaultFont: 'Arial', fontFallback: 'Arial',
+    listLineHeight: null,
+    mobilePadding: { top: 10, right: 25, bottom: 10, left: 25 },
+    useMobilePadding: false,
+    extendBgColor: false,
+    delta: {},
   };
 }
 
@@ -774,7 +780,7 @@ function analyzeRectNode(node: RectangleNode): BlockData {
   const isLogo = node.width <= 300 && node.height <= 120;
   const b = baseBlock(isLogo ? 'logo' : 'image', '#FFFFFF');
   b['blockModel'] = {
-    align: 'left', alt: '', src: 'https://ucarecdn.com/placeholder.jpg',
+    align: 'left', alt: '', src: 'https://ucarecdn.com/a8e75c39-8e27-4e0c-a2ba-42f05f70641b/-/preview/480x360/',
     link: '', width: Math.round(node.width),
     hasOriginalImageWidth: false, imageSmartCrop: 'original', originalSrc: '',
     borderRadius: { topLeft: node.topLeftRadius || 0, topRight: node.topRightRadius || 0, bottomLeft: node.bottomLeftRadius || 0, bottomRight: node.bottomRightRadius || 0 },

@@ -936,6 +936,12 @@ function validateBlocksAgainstNodes(rawBlocks, preparedItems) {
       borderThickness: { top: 0, right: 0, bottom: 0, left: 0 },
       borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 },
       columnWidth: 100, layoutType: 0, isLocked: false, tags: [], blocks: [],
+      defaultFont: 'Arial', fontFallback: 'Arial',
+      listLineHeight: null,
+      mobilePadding: { top: 10, right: 25, bottom: 10, left: 25 },
+      useMobilePadding: false,
+      extendBgColor: false,
+      delta: {},
     };
     if (type === 'button') {
       base.blockModel = { value: r.text, link: 'https://example.com', backgroundColor: r.color, color: '#FFFFFF', align: 'left', borderRadius: { topLeft: 6, topRight: 6, bottomLeft: 6, bottomRight: 6 }, innerPadding: { top: 10, right: 16, bottom: 10, left: 16 } };
@@ -984,7 +990,7 @@ blockquote — blockModel: { borderColor: "#hex" }
 button — blockModel: { value: "label", link: "https://example.com", backgroundColor: "#hex", color: "#hex", align: "left"|"center"|"right", borderRadius: { topLeft: 6, topRight: 6, bottomLeft: 6, bottomRight: 6 }, innerPadding: { top: 10, right: 16, bottom: 10, left: 16 } }
   Use computedBackgroundColor and computedTextColor from metadata for button colors.
 
-image — blockModel: { src: "https://ucarecdn.com/placeholder.jpg", alt: "", link: "", width: 600, align: "left"|"center"|"right", imageSmartCrop: "original", hasOriginalImageWidth: false, originalSrc: "", borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 } }
+image — blockModel: { src: "https://ucarecdn.com/a8e75c39-8e27-4e0c-a2ba-42f05f70641b/-/preview/480x360/", alt: "", link: "", width: 600, align: "left"|"center"|"right", imageSmartCrop: "original", hasOriginalImageWidth: false, originalSrc: "", borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 } }
 
 logo — same schema as image but width <= 300
 
@@ -1054,7 +1060,7 @@ RULES:
 - Only emit a block for content you can clearly identify. If uncertain, omit it.
 - Extract real colors from the design. Prefer computedBackgroundColor and computedTextColor from metadata over raw fills.
 - Use allTextChildren from metadata to find text in deeply nested nodes that may not appear in direct children.
-- Always use "https://ucarecdn.com/placeholder.jpg" for image src fields.
+- Always use "https://ucarecdn.com/a8e75c39-8e27-4e0c-a2ba-42f05f70641b/-/preview/480x360/" for image src fields.
 - Derive padding values from visual spacing visible in the design.
 - For text blocks, put the actual visible text into delta.ops[0].insert.
 - OUTPUT RULE: return a raw JSON array and nothing else. No markdown fences, no prose, no comments, no trailing commas. The entire response must pass JSON.parse() directly.`;
@@ -1282,6 +1288,15 @@ function setForceAiStyles(val) {
 }
 
 function applyBlockDefaults(block) {
+  const baseFields = {
+    defaultFont: block.defaultFont ?? 'Arial',
+    fontFallback: block.fontFallback ?? 'Arial',
+    listLineHeight: block.listLineHeight ?? null,
+    mobilePadding: block.mobilePadding ?? { top: 10, right: 25, bottom: 10, left: 25 },
+    useMobilePadding: block.useMobilePadding ?? false,
+    extendBgColor: block.extendBgColor ?? false,
+    delta: block.delta ?? {},
+  };
   let d;
   if (block.type === 'heading') {
     const level = block.blockModel?.headingType || 'h2';
@@ -1289,7 +1304,7 @@ function applyBlockDefaults(block) {
   } else if (['paragraph', 'blockquote', 'footer'].includes(block.type)) {
     d = blockDefaults.paragraph;
   } else {
-    return block;
+    return Object.assign({}, block, baseFields);
   }
   return Object.assign({}, block, {
     textColor: d.textColor,
@@ -1302,6 +1317,11 @@ function applyBlockDefaults(block) {
     lineHeight: d.lineHeight,
     defaultFont: d.font,
     fontFallback: d.fontFallback,
+    listLineHeight: block.listLineHeight ?? null,
+    mobilePadding: block.mobilePadding ?? { top: 10, right: 25, bottom: 10, left: 25 },
+    useMobilePadding: block.useMobilePadding ?? false,
+    extendBgColor: block.extendBgColor ?? false,
+    delta: block.delta ?? {},
   });
 }
 
@@ -1580,7 +1600,7 @@ function tplButton() { return `
 
 function tplImage() { return `
   <div class="form-group"><label>Image URL</label>
-    <input type="url" id="f_src" value="https://ucarecdn.com/placeholder.jpg"></div>
+    <input type="url" id="f_src" value="https://ucarecdn.com/a8e75c39-8e27-4e0c-a2ba-42f05f70641b/-/preview/480x360/"></div>
   <div class="form-group"><label>Alt Text</label>
     <input type="text" id="f_alt" value=""></div>
   <div class="form-group"><label>Link URL (optional)</label>
@@ -1985,7 +2005,12 @@ function paraChild(id, text) {
     blockModel: { align: 'left' },
     delta: { ops: [{ insert: text + '\n' }] },
     paddingTop: 10, paddingRight: 25, paddingBottom: 10, paddingLeft: 25,
-    backgroundColor: '#FFFFFF', isLocked: false, tags: [], blocks: []
+    backgroundColor: '#FFFFFF', isLocked: false, tags: [], blocks: [],
+    defaultFont: 'Arial', fontFallback: 'Arial',
+    listLineHeight: null,
+    mobilePadding: { top: 10, right: 25, bottom: 10, left: 25 },
+    useMobilePadding: false,
+    extendBgColor: false,
   };
 }
 
@@ -1993,13 +2018,19 @@ function imgChild(id) {
   return {
     type: 'image', uniqueId: id, columnWidth: 50,
     blockModel: {
-      align: 'left', alt: '', src: 'https://ucarecdn.com/placeholder.jpg',
+      align: 'left', alt: '', src: 'https://ucarecdn.com/a8e75c39-8e27-4e0c-a2ba-42f05f70641b/-/preview/480x360/',
       link: '', width: 600, hasOriginalImageWidth: false,
       imageSmartCrop: 'original', originalSrc: '',
       borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 }
     },
     paddingTop: 10, paddingRight: 25, paddingBottom: 10, paddingLeft: 25,
-    backgroundColor: '#FFFFFF', isLocked: false, tags: [], blocks: []
+    backgroundColor: '#FFFFFF', isLocked: false, tags: [], blocks: [],
+    defaultFont: 'Arial', fontFallback: 'Arial',
+    listLineHeight: null,
+    mobilePadding: { top: 10, right: 25, bottom: 10, left: 25 },
+    useMobilePadding: false,
+    extendBgColor: false,
+    delta: {},
   };
 }
 
@@ -2067,8 +2098,9 @@ function buildBlock() {
         borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 },
         hasOriginalImageWidth: false, imageSmartCrop: v('f_crop','original'),
         link: v('f_link',''), originalSrc: '',
-        src: v('f_src','https://ucarecdn.com/placeholder.jpg'), width: i('f_width', 600)
+        src: v('f_src','https://ucarecdn.com/a8e75c39-8e27-4e0c-a2ba-42f05f70641b/-/preview/480x360/'), width: i('f_width', 600)
       };
+      base.delta = {};
       break;
     }
     case 'logo': {
