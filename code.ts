@@ -982,14 +982,14 @@ figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode
   }
 
   if (msg.type === 'scan-image-fills') {
-    const results: Array<{ nodeName: string; nodeType: string; fillIndex: number; hash: string | null }> = [];
+    const items: Array<{ node: SceneNode; nodeName: string; nodeType: string; fillIndex: number; hash: string | null }> = [];
     const scanNode = (n: SceneNode, depth: number) => {
       const fills = (n as unknown as { fills?: ReadonlyArray<Paint> }).fills;
       if (fills && Array.isArray(fills)) {
         fills.forEach((fill, i) => {
           if (fill.type === 'IMAGE') {
             const hash = (fill as ImagePaint).imageHash;
-            results.push({ nodeName: n.name, nodeType: n.type, fillIndex: i, hash: hash || null });
+            items.push({ node: n, nodeName: n.name, nodeType: n.type, fillIndex: i, hash: hash || null });
           }
         });
       }
@@ -1001,6 +1001,17 @@ figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode
       }
     };
     for (const node of figma.currentPage.selection) scanNode(node, 0);
+
+    const results = await Promise.all(items.map(async ({ node, ...r }) => {
+      try {
+        const bytes = await (node as unknown as { exportAsync: (s: ExportSettingsImage) => Promise<Uint8Array> })
+          .exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 1 } });
+        return { ...r, bytes };
+      } catch {
+        return { ...r, bytes: null };
+      }
+    }));
+
     figma.ui.postMessage({ type: 'image-fill-scan', results });
   }
 
