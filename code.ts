@@ -17,6 +17,9 @@ Promise.all([
 ]).then(([key, baseUrl]) => {
   figma.ui.postMessage({ type: 'lh-key-loaded', key: key || '', baseUrl: baseUrl || '' });
 }).catch(() => {});
+figma.clientStorage.getAsync('uc_public_key').then(key => {
+  figma.ui.postMessage({ type: 'uc-key-loaded', key: key || '' });
+}).catch(() => {});
 
 // ─── Hex: Letterhead → Figma ──────────────────────────────────────────────────
 
@@ -912,7 +915,7 @@ function analyzeSelection(): AnalyzedBlock[] {
 
 // ─── Message handler ──────────────────────────────────────────────────────────
 
-figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode?: string; blocks?: unknown[]; key?: string; baseUrl?: string }) => {
+figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode?: string; blocks?: unknown[]; key?: string; baseUrl?: string; ucKey?: string }) => {
 
   if (msg.type === 'save-api-key') {
     await figma.clientStorage.setAsync('anthropic_api_key', msg.key || '');
@@ -927,12 +930,16 @@ figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode
     await figma.clientStorage.setAsync('lh_base_url', msg.baseUrl || '');
   }
 
+  if (msg.type === 'save-uc-key') {
+    await figma.clientStorage.setAsync('uc_public_key', msg.ucKey || '');
+  }
+
   if (msg.type === 'export-selection') {
     if (figma.currentPage.selection.length === 0) {
       figma.ui.postMessage({ type: 'selection-exported', items: [] });
       return;
     }
-    const items: Array<{ nodeId: string; nodeName: string; imageBytes: Uint8Array; metadata: Record<string, unknown>; html: string }> = [];
+    const items: Array<{ nodeId: string; nodeName: string; imageBytes: Uint8Array; imageChildBytes: Uint8Array[]; metadata: Record<string, unknown>; html: string }> = [];
     for (const node of figma.currentPage.selection) {
       try {
         const maxDim = 1200;
@@ -941,10 +948,60 @@ figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode
           .exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: scale } });
         const metadata = extractNodeMetadata(node);
         const html = serializeNodeToHtml(node);
-        items.push({ nodeId: node.id, nodeName: node.name, imageBytes, metadata, html });
+
+        // Collect actual image fill bytes (IMAGE-type fills), recursing the full subtree
+        const imageChildBytes: Uint8Array[] = [];
+        const collectImageFills = async (n: SceneNode): Promise<void> => {
+          const fills = (n as unknown as { fills?: ReadonlyArray<Paint> }).fills;
+          if (fills && Array.isArray(fills)) {
+            for (const fill of fills) {
+              if (fill.type === 'IMAGE') {
+                const hash = (fill as ImagePaint).imageHash;
+                if (hash) {
+                  try {
+                    const img = figma.getImageByHash(hash);
+                    if (img) imageChildBytes.push(await img.getBytesAsync());
+                  } catch (_) { /* skip */ }
+                }
+              }
+            }
+          }
+          if ('children' in n) {
+            const children = (n as unknown as { children: ReadonlyArray<SceneNode> }).children;
+            for (const child of Array.from(children)) {
+              if (child.visible) await collectImageFills(child);
+            }
+          }
+        };
+        await collectImageFills(node);
+
+        items.push({ nodeId: node.id, nodeName: node.name, imageBytes, imageChildBytes, metadata, html });
       } catch (_) { /* skip unexportable nodes */ }
     }
     figma.ui.postMessage({ type: 'selection-exported', items });
+  }
+
+  if (msg.type === 'scan-image-fills') {
+    const results: Array<{ nodeName: string; nodeType: string; fillIndex: number; hash: string | null }> = [];
+    const scanNode = (n: SceneNode, depth: number) => {
+      const fills = (n as unknown as { fills?: ReadonlyArray<Paint> }).fills;
+      if (fills && Array.isArray(fills)) {
+        fills.forEach((fill, i) => {
+          if (fill.type === 'IMAGE') {
+            const hash = (fill as ImagePaint).imageHash;
+            results.push({ nodeName: n.name, nodeType: n.type, fillIndex: i, hash: hash || null });
+          }
+        });
+      }
+      if (depth < 5 && 'children' in n) {
+        const children = (n as unknown as { children: ReadonlyArray<SceneNode> }).children;
+        for (const child of Array.from(children)) {
+          if (child.visible) scanNode(child, depth + 1);
+        }
+      }
+    };
+    for (const node of figma.currentPage.selection) scanNode(node, 0);
+    figma.ui.postMessage({ type: 'image-fill-scan', results });
   }
 
   if (msg.type === 'analyze-selection') {
