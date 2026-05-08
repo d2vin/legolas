@@ -853,17 +853,14 @@ function compressBlob(blob) {
 }
 
 async function uploadToUploadcare(base64, filename) {
-  console.log('[uc] uploadToUploadcare called, filename:', filename, 'key present:', !!savedUcPublicKey);
-  if (!savedUcPublicKey) { console.log('[uc] no public key — skipping'); return null; }
+  if (!savedUcPublicKey) { return null; }
   try {
     const bytes = atob(base64);
     const arr = new Uint8Array(bytes.length);
     for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
     const mime = detectMime(arr);
     const raw = new Blob([arr], { type: mime });
-    console.log('[uc] raw blob:', raw.size, 'bytes, mime:', mime);
     const blob = await compressBlob(raw);
-    console.log('[uc] compressed blob:', blob.size, 'bytes');
     const safeName = (filename || 'image').replace(/[^a-zA-Z0-9_-]/g, '_') + '.jpg';
     const form = new FormData();
     form.append('UPLOADCARE_PUB_KEY', savedUcPublicKey);
@@ -871,15 +868,12 @@ async function uploadToUploadcare(base64, filename) {
     form.append('file', blob, safeName);
     const res = await fetch('https://upload.uploadcare.com/base/', { method: 'POST', body: form });
     const text = await res.text();
-    console.log('[uc] response status:', res.status, 'body:', text);
-    if (!res.ok) { console.log('[uc] upload failed'); return null; }
+    if (!res.ok) { return null; }
     let json;
-    try { json = JSON.parse(text); } catch (_) { console.log('[uc] non-JSON response'); return null; }
+    try { json = JSON.parse(text); } catch (_) { return null; }
     const url = json.file ? `https://ucarecdn.com/${json.file}/` : null;
-    console.log('[uc] result url:', url);
     return url;
   } catch (err) {
-    console.log('[uc] exception:', err);
     return null;
   }
 }
@@ -1007,7 +1001,6 @@ async function handleExportedSelection(items) {
     // Convert Uint8Array bytes to base64 in the UI thread
     const prepared = items.map(item => {
       const hasImageFill = !!(item.imageChildBytes?.length);
-      console.log('[uc] item:', item.nodeName, '— imageChildBytes count:', item.imageChildBytes?.length ?? 0, '— will upload:', hasImageFill ? 'image fill' : 'full frame');
       return {
         nodeId: item.nodeId,
         nodeName: item.nodeName,
@@ -1027,14 +1020,12 @@ async function handleExportedSelection(items) {
       parent.postMessage({ pluginMessage: { type: 'save-uc-key', ucKey: ucKeyInput } }, '*');
     }
     const uploadedUrls = [];
-    console.log('[uc] savedUcPublicKey at upload time:', savedUcPublicKey || '(empty)');
     if (savedUcPublicKey) {
       showLoading(`Uploading ${prepared.length} image${prepared.length > 1 ? 's' : ''} to Uploadcare…`);
       const uploads = await Promise.all(
         prepared.map(item => uploadToUploadcare(item.uploadBase64, item.nodeName))
       );
       uploadedUrls.push(...uploads);
-      console.log('[uc] all uploaded URLs:', uploadedUrls);
     }
 
     showLoading(`Asking ${activeProvider === 'openai' ? 'GPT-4o' : 'Claude'} to classify ${prepared.length} layer${prepared.length > 1 ? 's' : ''}…`);
@@ -1055,13 +1046,11 @@ async function handleExportedSelection(items) {
     }));
 
     // Patch image/logo block srcs with uploaded Uploadcare URLs (in occurrence order)
-    console.log('[uc] patching blocks — uploadedUrls:', uploadedUrls, 'result types:', results.map(r => r.block.type));
     if (uploadedUrls.length > 0) {
       let ucIdx = 0;
       for (const result of results) {
         if (result.block.type === 'image' || result.block.type === 'logo') {
           const url = uploadedUrls[ucIdx++];
-          console.log('[uc] patching', result.block.type, 'block with url:', url);
           if (url) result.block.blockModel = { ...result.block.blockModel, src: url };
           if (ucIdx >= uploadedUrls.length) break;
         }
