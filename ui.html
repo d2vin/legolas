@@ -290,12 +290,28 @@
     margin-bottom: 8px;
   }
   .block-item {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 10px; background: #fff;
+    background: #fff;
     border-top: 1px solid #f1f5f9;
-    font-size: 11px;
   }
   .block-item:first-child { border-top: none; }
+  .block-item-hd {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; font-size: 11px;
+    cursor: pointer; user-select: none;
+  }
+  .block-item-hd:hover { background: #f8fafc; }
+  .block-item-toggle {
+    margin-left: auto; font-size: 9px; color: #94a3b8; flex-shrink: 0;
+  }
+  .block-item-bd {
+    display: none; border-top: 1px solid #f1f5f9;
+    overflow: hidden;
+  }
+  .block-item-bd.open { display: block; }
+  .block-visual-preview {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px; overflow: hidden;
+  }
   .block-badge {
     font-size: 9px; font-weight: 700; padding: 2px 6px;
     border-radius: 3px; text-transform: uppercase; letter-spacing: 0.3px;
@@ -449,9 +465,9 @@
 
   <div class="section">
     <div class="section-hd" onclick="toggleSection('common')">
-      Common Settings <span id="common-icon">▼</span>
+      Common Settings <span id="common-icon">▶</span>
     </div>
-    <div class="section-bd" id="common-bd">
+    <div class="section-bd hidden" id="common-bd">
       <div class="grid-2">
         <div class="form-group">
           <label>Background</label>
@@ -617,9 +633,9 @@
   <!-- Letterhead API section (importer) -->
   <div class="section" id="lh-api-imp-wrap" style="margin-top:8px">
     <div class="section-hd" onclick="toggleSection('lh-api-imp')">
-      Send to Letterhead <span id="lh-api-imp-icon">▼</span>
+      Send to Letterhead <span id="lh-api-imp-icon">▶</span>
     </div>
-    <div class="section-bd" id="lh-api-imp-bd">
+    <div class="section-bd hidden" id="lh-api-imp-bd">
       <div class="form-group">
         <label>Letter Title <span style="font-weight:400;text-transform:none">(optional)</span></label>
         <input type="text" id="lh-letter-title-imp" placeholder="My Newsletter">
@@ -729,7 +745,7 @@ window.onmessage = (event) => {
       container.innerHTML = `
         <div class="scan-results-wrap">
           <div class="scan-results-hd" onclick="toggleSection('scan-results')">Found ${results.length} image fill${results.length > 1 ? 's' : ''} <span id="scan-results-icon">▼</span></div>
-          <div id="scan-results-bd" class="section-bd">${rows}</div>
+          <div id="scan-results-bd" class="section-bd hidden">${rows}</div>
         </div>`;
     }
   }
@@ -1409,16 +1425,22 @@ function renderAnalyzedBlocks(blocks, source) {
   }
 
   const isAi = source === 'ai';
-  const rows = blocks.map(item => {
+  const rows = blocks.map((item, i) => {
     const type = item.blockType || (item.block && item.block.type) || 'paragraph';
     const color = BLOCK_BADGE_COLORS[type] || '#6B7280';
     const preview = getPreview(item.block);
+    const visualPreview = renderBlockVisualPreview(item.block);
     return `
-      <div class="block-item">
-        <span class="block-badge" style="background:${color}">${esc(type)}</span>
-        <span class="source-badge ${isAi ? 'source-ai' : 'source-heuristic'}">${isAi ? 'AI' : 'auto'}</span>
-        <span class="block-node-name" title="${esc(item.nodeName)}">${esc(item.nodeName)}</span>
-        ${preview ? `<span class="block-preview" title="${esc(preview)}">${esc(preview)}</span>` : ''}
+      <div class="block-item" id="block-item-${i}">
+        <div class="block-item-hd" onclick="toggleBlockItem(${i})">
+          <span class="block-badge" style="background:${color}">${esc(type)}</span>
+          <span class="block-node-name" title="${esc(item.nodeName)}">${item.nodeName && item.nodeName.toLowerCase() !== type.toLowerCase() ? esc(item.nodeName) : ''}</span>
+          ${preview ? `<span class="block-preview" title="${esc(preview)}">${esc(preview)}</span>` : ''}
+          <span class="block-item-toggle">▶</span>
+        </div>
+        <div class="block-item-bd" id="block-item-bd-${i}">
+          <div class="block-visual-preview">${visualPreview}</div>
+        </div>
       </div>`;
   }).join('');
 
@@ -1452,6 +1474,142 @@ function getPreview(block) {
     if (val && typeof val === 'string') return val.length > 36 ? val.substring(0, 36) + '…' : val;
   }
   return '';
+}
+
+function toggleBlockItem(i) {
+  const bd = document.getElementById('block-item-bd-' + i);
+  const toggle = document.querySelector('#block-item-' + i + ' .block-item-toggle');
+  const isOpen = bd.classList.toggle('open');
+  toggle.textContent = isOpen ? '▼' : '▶';
+}
+
+function renderBlockVisualPreview(block) {
+  if (!block) return '<div style="padding:10px;color:#94a3b8;font-size:10px;font-style:italic">No preview available</div>';
+  const type = block.type || 'paragraph';
+  const bg = block.backgroundColor || '#ffffff';
+  const textColor = block.textColor || '#1a1a1a';
+  const pt = block.paddingTop ?? 10;
+  const pr = block.paddingRight ?? 25;
+  const pb = block.paddingBottom ?? 10;
+  const pl = block.paddingLeft ?? 25;
+  const fontSize = Math.min(block.fontSize || 14, 18);
+  const lineHeight = block.lineHeight || 1.4;
+  const font = block.defaultFont || 'Arial';
+  const fontFallback = block.fontFallback || 'Arial';
+  const m = block.blockModel || {};
+  const align = m.align || 'left';
+
+  const brBlock = block.borderRadius;
+  const brBlockStyle = brBlock && typeof brBlock === 'object'
+    ? `border-radius:${brBlock.topLeft||0}px ${brBlock.topRight||0}px ${brBlock.bottomRight||0}px ${brBlock.bottomLeft||0}px;`
+    : '';
+
+  const wrapStyle = `background:${bg};padding:${pt}px ${pr}px ${pb}px ${pl}px;font-size:${fontSize}px;line-height:${lineHeight};color:${textColor};text-align:center;word-break:break-word;font-family:${font},${fontFallback},sans-serif;${brBlockStyle}`;
+
+  function deltaToHtml(delta) {
+    if (!delta || !Array.isArray(delta.ops)) return '';
+    return delta.ops.map(op => {
+      if (typeof op.insert !== 'string') return '';
+      let text = esc(op.insert).replace(/\n/g, '<br>');
+      const a = op.attributes || {};
+      if (a.color) text = `<span style="color:${a.color}">${text}</span>`;
+      if (a.bold) text = `<strong>${text}</strong>`;
+      if (a.italic) text = `<em>${text}</em>`;
+      if (a.underline) text = `<u>${text}</u>`;
+      if (a.link) text = `<a href="#" style="color:inherit">${text}</a>`;
+      return text;
+    }).join('');
+  }
+
+  function brFromObj(br, fallback) {
+    if (!br) return `${fallback ?? 0}px`;
+    if (typeof br === 'object') return `${br.topLeft||0}px ${br.topRight||0}px ${br.bottomRight||0}px ${br.bottomLeft||0}px`;
+    return `${br}px`;
+  }
+
+  let inner;
+  switch (type) {
+    case 'paragraph':
+    case 'footer': {
+      const html = deltaToHtml(block.delta);
+      inner = `<div style="${wrapStyle}">${html || '<em style="opacity:0.4">Empty paragraph</em>'}</div>`;
+      break;
+    }
+    case 'heading': {
+      const tag = m.headingType || 'h2';
+      const html = deltaToHtml(block.delta);
+      inner = `<div style="${wrapStyle}"><${tag} style="margin:0;font-size:${fontSize}px;font-weight:700;line-height:${lineHeight}">${html || 'Heading'}</${tag}></div>`;
+      break;
+    }
+    case 'blockquote': {
+      const borderColor = m.borderColor || block.borderColor || '#6366f1';
+      const html = deltaToHtml(block.delta);
+      inner = `<div style="${wrapStyle}"><blockquote style="margin:0;border-left:3px solid ${borderColor};padding-left:16px;font-style:italic">${html || 'Blockquote'}</blockquote></div>`;
+      break;
+    }
+    case 'button': {
+      const btnBg = m.backgroundColor || '#6366f1';
+      const btnColor = m.color || '#ffffff';
+      const ip = m.innerPadding;
+      const btnPad = ip && typeof ip === 'object'
+        ? `${ip.top||8}px ${ip.right||16}px ${ip.bottom||8}px ${ip.left||16}px`
+        : '8px 16px';
+      const label = m.value || m.linkText || 'Button';
+      inner = `<div style="${wrapStyle}"><span style="display:inline-block;background:${btnBg};color:${btnColor};padding:${btnPad};border-radius:${brFromObj(m.borderRadius, 4)};font-size:${fontSize}px;font-weight:600;font-family:${font},${fontFallback},sans-serif">${esc(label)}</span></div>`;
+      break;
+    }
+    case 'image':
+    case 'logo': {
+      const src = m.src || '';
+      const imgWidth = m.width ? `${m.width}px` : '100%';
+      const imgAlign = m.align || 'center';
+      const marginStyle = imgAlign === 'center' ? 'margin:0 auto;' : imgAlign === 'right' ? 'margin-left:auto;' : '';
+      if (src) {
+        inner = `<div style="${wrapStyle}"><img src="${src}" alt="${esc(m.alt || '')}" style="max-width:100%;max-height:160px;object-fit:contain;display:block;${marginStyle}border-radius:${brFromObj(m.borderRadius)}"></div>`;
+      } else {
+        inner = `<div style="${wrapStyle};text-align:center"><div style="background:#f1f5f9;border:1px dashed #cbd5e1;padding:40px 0;color:#94a3b8;font-size:14px;border-radius:4px">Image placeholder</div></div>`;
+      }
+      break;
+    }
+    case 'divider': {
+      const divColor = m.color || '#e2e8f0';
+      const divStyle = m.style || 'solid';
+      const thickness = m.width || 1;
+      inner = `<div style="${wrapStyle}"><hr style="border:none;border-top:${thickness}px ${divStyle} ${divColor};width:100%;margin:0"></div>`;
+      break;
+    }
+    case 'html': {
+      const htmlContent = m.html || '';
+      inner = `<div style="${wrapStyle};font-family:monospace;font-size:12px;color:#475569;max-height:120px;overflow:hidden">${esc(htmlContent).substring(0, 400)}${htmlContent.length > 400 ? '…' : ''}</div>`;
+      break;
+    }
+    case 'poll': {
+      const question = m.questionText || m.prompt || 'Poll question';
+      const opts = Array.isArray(m.options) ? m.options.slice(0, 3) : ['Option A', 'Option B'];
+      const optRows = opts.map(o => `<div style="border:1px solid #e2e8f0;border-radius:4px;padding:8px 16px;margin-top:8px">${esc(typeof o === 'string' ? o : (o.label || ''))}</div>`).join('');
+      inner = `<div style="${wrapStyle}"><div style="font-weight:600;margin-bottom:4px">${esc(question)}</div>${optRows}</div>`;
+      break;
+    }
+    case 'audio': {
+      const title = m.title || 'Podcast Episode';
+      const subtitle = m.subtitle || '';
+      const ts = m.titleSettings || {};
+      const ss = m.subtitleSettings || {};
+      inner = `<div style="${wrapStyle}"><div style="display:flex;align-items:center;gap:16px;background:#f8fafc;border-radius:${brFromObj(m.borderRadius, 8)};padding:16px"><div style="background:#6366f1;color:#fff;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px">▶</div><div><div style="font-weight:600;font-size:${ts.fontSize||14}px;color:${ts.color||textColor}">${esc(title)}</div>${subtitle ? `<div style="font-size:${ss.fontSize||12}px;color:${ss.color||'#64748b'};margin-top:2px">${esc(subtitle)}</div>` : ''}</div></div></div>`;
+      break;
+    }
+    case 'youtube': {
+      inner = `<div style="${wrapStyle};text-align:center"><div style="background:#0f0f0f;color:#fff;padding:40px;font-size:16px;border-radius:4px">▶ YouTube Video</div></div>`;
+      break;
+    }
+    default: {
+      const preview = getPreview(block);
+      inner = `<div style="${wrapStyle};color:#64748b">${preview ? esc(preview) : `<em>${esc(type)} block</em>`}</div>`;
+      break;
+    }
+  }
+
+  return inner;
 }
 
 function esc(str) {
@@ -2148,8 +2306,8 @@ function onTypeChange() {
 
   container.innerHTML = tpl
     ? `<div class="section">
-         <div class="section-hd" onclick="toggleSection('specific-settings')">${label} Settings <span id="specific-settings-icon">▼</span></div>
-         <div class="section-bd" id="specific-settings-bd">${tpl()}</div>
+         <div class="section-hd" onclick="toggleSection('specific-settings')">${label} Settings <span id="specific-settings-icon">▶</span></div>
+         <div class="section-bd hidden" id="specific-settings-bd">${tpl()}</div>
        </div>`
     : '';
 

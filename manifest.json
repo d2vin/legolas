@@ -16,7 +16,8 @@
       "https://api.openai.com",
       "https://*.api.tryletterhead.dev",
       "https://*.api.tryletterhead.com",
-      "https://upload.uploadcare.com"
+      "https://upload.uploadcare.com",
+      "https://ucarecdn.com"
     ]
   }
 }
