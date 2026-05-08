@@ -300,6 +300,14 @@
     cursor: pointer; user-select: none;
   }
   .block-item-hd:hover { background: #f8fafc; }
+  .block-item.active > .block-item-hd { background: #eef2ff; }
+  .block-item-actions { display: flex; gap: 4px; flex-shrink: 0; margin-left: auto; }
+  .block-item-btn {
+    font-size: 9px; padding: 2px 6px; border-radius: 3px; border: 1px solid #e2e8f0;
+    background: #f8fafc; color: #475569; cursor: pointer; white-space: nowrap;
+  }
+  .block-item-btn:hover { background: #e2e8f0; }
+  .block-item-btn.danger:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
   .block-item-toggle {
     margin-left: auto; font-size: 9px; color: #94a3b8; flex-shrink: 0;
   }
@@ -567,6 +575,8 @@
     </div>
   </div>
 
+  <div id="generated-blocks-container"></div>
+
   <div style="height:8px"></div>
 </div>
 
@@ -678,7 +688,7 @@
 <!-- ─── Actions: Builder ─────────────────────────────────────────────────────── -->
 <div class="actions" id="actions-builder">
   <button class="btn btn-secondary" onclick="cancel()">Cancel</button>
-  <button class="btn btn-success" id="btn-send-lh" onclick="sendToLetterhead()">↑ Send Letter</button>
+  <button class="btn btn-success" id="btn-send-lh" disabled onclick="sendToLetterhead()">↑ Send Letter</button>
   <button class="btn btn-primary" onclick="createBlock()">Create Block</button>
 </div>
 
@@ -718,6 +728,25 @@ window.onmessage = (event) => {
   }
   if (msg.type === 'selection-analyzed') {
     renderAnalyzedBlocks(msg.blocks || [], 'heuristic');
+  }
+  if (msg.type === 'block-created') {
+    addGeneratedBlock(msg.block, msg.frameId);
+  }
+  if (msg.type === 'block-updated') {
+    updateGeneratedBlockFrameId(msg.oldFrameId, msg.newFrameId);
+  }
+  if (msg.type === 'block-frame-updated') {
+    const idx = generatedBlocks.findIndex(e => e.frameId === msg.frameId);
+    if (idx >= 0) {
+      generatedBlocks[idx].block = msg.block;
+      renderGeneratedBlocksList();
+    }
+  }
+  if (msg.type === 'block-frame-selected') {
+    onBlockFrameSelected(msg.frameId, msg.block, msg.mode);
+  }
+  if (msg.type === 'block-frame-deselected') {
+    onBlockFrameDeselected();
   }
   if (msg.type === 'selection-exported') {
     handleExportedSelection(msg.items || []);
@@ -1672,6 +1701,123 @@ function generateBlocks() {
   parent.postMessage({
     pluginMessage: { type: 'render-blocks', blocks, outputMode: aiOutputMode }
   }, '*');
+}
+
+// ─── Generated Blocks (Builder) ───────────────────────────────────────────────
+let generatedBlocks = []; // [{block, frameId, mode}]
+let generatedBlocksOpen = []; // persists open/closed state across re-renders
+let activeGeneratedIdx = -1;
+let autoSaveTimer = null;
+
+function addGeneratedBlock(block, frameId) {
+  generatedBlocks.push({ block, frameId, mode: outputMode });
+  generatedBlocksOpen.push(true); // open the new block's dropdown by default
+  activeGeneratedIdx = generatedBlocks.length - 1;
+  renderGeneratedBlocksList();
+}
+
+function updateGeneratedBlockFrameId(oldFrameId, newFrameId) {
+  const entry = generatedBlocks.find(e => e.frameId === oldFrameId);
+  if (entry) entry.frameId = newFrameId;
+}
+
+function onBlockFrameSelected(frameId, block, mode) {
+  const idx = generatedBlocks.findIndex(e => e.frameId === frameId);
+  if (idx >= 0) {
+    activeGeneratedIdx = idx;
+    renderGeneratedBlocksList();
+  }
+}
+
+function onBlockFrameDeselected() {
+  // Keep activeGeneratedIdx so form edits still autosave to the last active block
+}
+
+function setActiveGeneratedIdx(idx) {
+  activeGeneratedIdx = idx;
+  const entry = generatedBlocks[idx];
+  if (entry) {
+    parent.postMessage({ pluginMessage: { type: 'select-frame', frameId: entry.frameId } }, '*');
+  }
+  renderGeneratedBlocksList();
+}
+
+function toggleGenBlockItem(i) {
+  generatedBlocksOpen[i] = !generatedBlocksOpen[i];
+  renderGeneratedBlocksList();
+}
+
+function removeGeneratedBlock(idx) {
+  if (activeGeneratedIdx === idx) activeGeneratedIdx = -1;
+  else if (activeGeneratedIdx > idx) activeGeneratedIdx--;
+  generatedBlocks.splice(idx, 1);
+  generatedBlocksOpen.splice(idx, 1);
+  renderGeneratedBlocksList();
+}
+
+function clearGeneratedBlocks() {
+  generatedBlocks = [];
+  generatedBlocksOpen = [];
+  activeGeneratedIdx = -1;
+  renderGeneratedBlocksList();
+}
+
+function renderGeneratedBlocksList() {
+  const container = document.getElementById('generated-blocks-container');
+  if (!container) return;
+  const sendBtn = document.getElementById('btn-send-lh');
+  if (sendBtn) sendBtn.disabled = !generatedBlocks.length;
+  if (!generatedBlocks.length) { container.innerHTML = ''; return; }
+
+  const rows = generatedBlocks.map((entry, i) => {
+    const { block } = entry;
+    const type = block.type || 'paragraph';
+    const color = BLOCK_BADGE_COLORS[type] || '#6B7280';
+    const preview = getPreview(block);
+    const visualPreview = renderBlockVisualPreview(block);
+    const isActive = i === activeGeneratedIdx;
+    const isOpen = !!generatedBlocksOpen[i];
+    return `
+      <div class="block-item${isActive ? ' active' : ''}" id="gen-block-item-${i}">
+        <div class="block-item-hd" onclick="setActiveGeneratedIdx(${i})">
+          <span class="block-badge" style="background:${color}">${esc(type)}</span>
+          ${preview ? `<span class="block-preview" title="${esc(preview)}">${esc(preview)}</span>` : ''}
+          <span class="block-item-actions">
+            <button class="block-item-btn danger" onclick="event.stopPropagation();removeGeneratedBlock(${i})" title="Remove">✕</button>
+            <span class="block-item-toggle" onclick="event.stopPropagation();toggleGenBlockItem(${i})">${isOpen ? '▼' : '▶'}</span>
+          </span>
+        </div>
+        <div class="block-item-bd${isOpen ? ' open' : ''}" id="gen-block-item-bd-${i}">
+          <div class="block-visual-preview">${visualPreview}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="block-list-header" style="margin-top:8px">
+      Generated Blocks
+      <span style="display:flex;align-items:center;gap:6px">
+        <span class="block-count">${generatedBlocks.length}</span>
+        <button class="block-item-btn danger" onclick="clearGeneratedBlocks()" title="Clear all" style="font-size:9px;padding:1px 5px">Clear</button>
+      </span>
+    </div>
+    <div class="block-list">${rows}</div>`;
+}
+
+function scheduleAutoSave() {
+  if (activeGeneratedIdx < 0) return;
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    const entry = generatedBlocks[activeGeneratedIdx];
+    if (!entry) return;
+    const block = buildBlock();
+    if (!block) return;
+    entry.block = block;
+    parent.postMessage({
+      pluginMessage: { type: 'update-block', frameId: entry.frameId, blockData: block, outputMode }
+    }, '*');
+    renderGeneratedBlocksList();
+  }, 800);
 }
 
 // ─── Builder: output mode ─────────────────────────────────────────────────────
@@ -2709,9 +2855,10 @@ async function sendToLetterhead() {
   const ucKeyBuilder = (document.getElementById('uc-public-key').value || '').trim();
   if (ucKeyBuilder) { savedUcPublicKey = ucKeyBuilder; parent.postMessage({ pluginMessage: { type: 'save-uc-key', ucKey: ucKeyBuilder } }, '*'); }
 
-  const block = buildBlock();
-  const blocksArray = block ? [block] : [];
-  const blocksString = typeof blocksArray === 'string' ? blocksArray : JSON.stringify(blocksArray);
+  const blocksArray = generatedBlocks.length
+    ? generatedBlocks.map(e => e.block)
+    : (() => { const b = buildBlock(); return b ? [b] : []; })();
+  const blocksString = JSON.stringify(blocksArray);
 
   if (blocksString === '[]') {
     lhShowToast('No block to send.', true);
@@ -2821,6 +2968,18 @@ showDefsTab('paragraph');
 showDefsTabImp('paragraph');
 onTypeChange();
 document.getElementById('force-ai-styles').checked = forceAiStyles;
+
+// Autosave: watch all builder form inputs for changes
+(function() {
+  const pg = document.getElementById('page-builder');
+  const ignoredIds = new Set(['blockType']);
+  function onFormChange(e) {
+    if (ignoredIds.has(e.target.id)) return;
+    scheduleAutoSave();
+  }
+  pg.addEventListener('input', onFormChange);
+  pg.addEventListener('change', onFormChange);
+})();
 </script>
 </body>
 </html>

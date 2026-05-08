@@ -59,6 +59,12 @@ function genUid(): string {
   return Math.random().toString(36).substring(2, 11) + Math.random().toString(36).substring(2, 11);
 }
 
+let lastCreatedFrameId: string | null = null;
+let lastBlockAnchor: { x: number; bottom: number } | null = null;
+let docChangeTimer: ReturnType<typeof setTimeout> | null = null;
+const pendingFrameUpdates = new Set<string>();
+const trackedFrameIds = new Set<string>();
+
 const BLOCK_COLORS: Record<string, string> = {
   paragraph: '#3B82F6', heading: '#1D4ED8', blockquote: '#7C3AED',
   button: '#059669', image: '#D97706', logo: '#EA580C',
@@ -915,7 +921,7 @@ function analyzeSelection(): AnalyzedBlock[] {
 
 // ─── Message handler ──────────────────────────────────────────────────────────
 
-figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode?: string; blocks?: unknown[]; key?: string; baseUrl?: string; ucKey?: string }) => {
+figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode?: string; blocks?: unknown[]; key?: string; baseUrl?: string; ucKey?: string; frameId?: string }) => {
 
   if (msg.type === 'save-api-key') {
     await figma.clientStorage.setAsync('anthropic_api_key', msg.key || '');
@@ -1024,13 +1030,49 @@ figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode
     const mode = msg.outputMode || 'json';
     try { await loadFonts(); } catch (_) { /* continue */ }
     const frame = mode === 'visual' ? await createVisualBlock(block) : await createJsonFrame(block);
-    const center = figma.viewport.center;
-    frame.x = Math.round(center.x - frame.width / 2);
-    frame.y = Math.round(center.y - 100);
+    frame.setPluginData('lhBlock', JSON.stringify(block));
+    frame.setPluginData('lhBlockMode', mode);
     figma.currentPage.appendChild(frame);
+    if (lastBlockAnchor) {
+      frame.x = lastBlockAnchor.x;
+      frame.y = lastBlockAnchor.bottom;
+    } else {
+      const center = figma.viewport.center;
+      frame.x = Math.round(center.x - frame.width / 2);
+      frame.y = Math.round(center.y - 100);
+    }
+    lastCreatedFrameId = frame.id;
+    lastBlockAnchor = { x: frame.x, bottom: frame.y + frame.height };
+    trackedFrameIds.add(frame.id);
     figma.currentPage.selection = [frame];
-    figma.viewport.scrollAndZoomIntoView([frame]);
     figma.notify(`Created ${block['type'] as string} block (${mode})`, { timeout: 2000 });
+    figma.ui.postMessage({ type: 'block-created', frameId: frame.id, block });
+  }
+
+  if (msg.type === 'update-block' && msg.frameId && msg.blockData) {
+    const node = await figma.getNodeByIdAsync(msg.frameId);
+    if (node && node.type === 'FRAME') {
+      const block = msg.blockData as BlockData;
+      const mode = msg.outputMode || 'visual';
+      const px = node.x, py = node.y;
+      const par = node.parent;
+      try { await loadFonts(); } catch (_) { /* continue */ }
+      const newFrame = mode === 'visual' ? await createVisualBlock(block) : await createJsonFrame(block);
+      newFrame.x = px; newFrame.y = py;
+      newFrame.setPluginData('lhBlock', JSON.stringify(block));
+      newFrame.setPluginData('lhBlockMode', mode);
+      if (par) par.appendChild(newFrame);
+      newFrame.x = px; newFrame.y = py;
+      node.remove();
+      trackedFrameIds.delete(msg.frameId);
+      trackedFrameIds.add(newFrame.id);
+      if (lastCreatedFrameId === msg.frameId) {
+        lastCreatedFrameId = newFrame.id;
+        lastBlockAnchor = { x: newFrame.x, bottom: newFrame.y + newFrame.height };
+      }
+      figma.currentPage.selection = [newFrame];
+      figma.ui.postMessage({ type: 'block-updated', oldFrameId: msg.frameId, newFrameId: newFrame.id });
+    }
   }
 
   if (msg.type === 'render-blocks' && msg.blocks && msg.blocks.length > 0) {
@@ -1044,6 +1086,8 @@ figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode
     for (const block of blocks) {
       const frame = mode === 'json' ? await createJsonFrame(block) : await createVisualBlock(block);
       frame.x = x; frame.y = y;
+      frame.setPluginData('lhBlock', JSON.stringify(block));
+      frame.setPluginData('lhBlockMode', mode);
       figma.currentPage.appendChild(frame);
       y += frame.height + 16;
       created.push(frame);
@@ -1053,9 +1097,117 @@ figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode
       figma.viewport.scrollAndZoomIntoView(created);
     }
     figma.notify(`Generated ${blocks.length} Letterhead block${blocks.length > 1 ? 's' : ''} (${mode})`, { timeout: 2000 });
+    figma.ui.postMessage({ type: 'blocks-rendered', items: created.map(f => ({ frameId: f.id })) });
+  }
+
+  if (msg.type === 'select-frame' && msg.frameId) {
+    const node = await figma.getNodeByIdAsync(msg.frameId);
+    if (node) {
+      figma.currentPage.selection = [node as SceneNode];
+    }
   }
 
   if (msg.type === 'cancel') {
     figma.closePlugin();
   }
 };
+
+function syncBlockFromFrame(frame: FrameNode): BlockData | null {
+  const raw = frame.getPluginData('lhBlock');
+  if (!raw) return null;
+  let block: BlockData;
+  try { block = JSON.parse(raw); } catch { return null; }
+
+  const updated: BlockData = { ...block };
+
+  // Background color
+  const bgHex = nodeFillHex(frame as unknown as SceneNode);
+  if (bgHex) updated['backgroundColor'] = bgHex;
+
+  // Padding
+  updated['paddingTop'] = frame.paddingTop;
+  updated['paddingRight'] = frame.paddingRight;
+  updated['paddingBottom'] = frame.paddingBottom;
+  updated['paddingLeft'] = frame.paddingLeft;
+
+  // Border radius
+  updated['borderRadius'] = {
+    topLeft: frame.topLeftRadius || 0,
+    topRight: frame.topRightRadius || 0,
+    bottomLeft: frame.bottomLeftRadius || 0,
+    bottomRight: frame.bottomRightRadius || 0,
+  };
+
+  // Border
+  const strokeHex = nodeStrokeHex(frame as unknown as SceneNode);
+  if (strokeHex) updated['borderColor'] = strokeHex;
+  if (typeof frame.strokeWeight === 'number') {
+    updated['borderThickness'] = { top: frame.strokeWeight, right: frame.strokeWeight, bottom: frame.strokeWeight, left: frame.strokeWeight };
+  }
+
+  // Text content
+  const type = block['type'] as string;
+  const textTypes = ['paragraph', 'heading', 'blockquote', 'footer', 'button', 'view_in_browser'];
+  if (textTypes.includes(type)) {
+    const textNode = frame.findOne(n => n.type === 'TEXT') as TextNode | null;
+    if (textNode) {
+      const chars = textNode.characters;
+      updated['delta'] = { ops: [{ insert: chars.endsWith('\n') ? chars : chars + '\n' }] };
+      const textHex = nodeFillHex(textNode as unknown as SceneNode);
+      if (textHex) updated['textColor'] = textHex;
+      if (typeof textNode.fontSize === 'number') updated['fontSize'] = textNode.fontSize;
+    }
+  }
+
+  return updated;
+}
+
+(async () => {
+  await figma.loadAllPagesAsync();
+  figma.on('documentchange', (event) => {
+    for (const change of event.documentChanges) {
+      if (!('node' in change)) continue;
+      let current: BaseNode | null = (change as { node: SceneNode }).node as BaseNode;
+      while (current) {
+        if (trackedFrameIds.has(current.id)) {
+          pendingFrameUpdates.add(current.id);
+          break;
+        }
+        current = current.parent;
+      }
+    }
+
+    if (pendingFrameUpdates.size === 0) return;
+
+    if (docChangeTimer) clearTimeout(docChangeTimer);
+    docChangeTimer = setTimeout(async () => {
+      for (const frameId of pendingFrameUpdates) {
+        const node = await figma.getNodeByIdAsync(frameId);
+        if (!node || node.type !== 'FRAME') continue;
+        const updated = syncBlockFromFrame(node);
+        if (updated) {
+          node.setPluginData('lhBlock', JSON.stringify(updated));
+          figma.ui.postMessage({ type: 'block-frame-updated', frameId, block: updated });
+        }
+      }
+      pendingFrameUpdates.clear();
+    }, 500);
+  });
+})();
+
+figma.on('selectionchange', () => {
+  const sel = figma.currentPage.selection;
+  if (sel.length === 1) {
+    const node = sel[0];
+    const raw = node.getPluginData('lhBlock');
+    if (raw) {
+      try {
+        const block = JSON.parse(raw);
+        const mode = node.getPluginData('lhBlockMode') || 'visual';
+        figma.ui.postMessage({ type: 'block-frame-selected', frameId: node.id, block, mode });
+      } catch (_) { /* ignore malformed data */ }
+      return;
+    }
+  }
+  figma.ui.postMessage({ type: 'block-frame-deselected' });
+});
