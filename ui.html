@@ -396,6 +396,11 @@
 <div class="scroll-area" id="page-builder">
   <h1>Newsletter Block Builder</h1>
 
+  <div class="toggle-row">
+    <button class="toggle-btn active" id="mode-visual" onclick="setMode('visual')">◈ Visual Preview</button>
+    <button class="toggle-btn" id="mode-json" onclick="setMode('json')">{ } JSON</button>
+  </div>
+
   <div class="form-group">
     <label>Block Type</label>
     <select id="blockType" onchange="onTypeChange()">
@@ -579,6 +584,12 @@
 <div class="scroll-area" id="page-importer" style="display:none">
   <h1>Figma → Letterhead</h1>
 
+  <p class="hint">
+    Select one or more layers in Figma, then click <strong>AI Analyze</strong> to use Claude vision
+    to classify and convert them into Letterhead blocks. <strong>Quick Analyze</strong> uses fast
+    local heuristics instead.
+  </p>
+
   <!-- AI settings section -->
   <div class="api-key-section">
     <div class="api-key-hd" onclick="toggleApiKey()">
@@ -655,8 +666,14 @@
   </div>
 
   <!-- Analyze buttons -->
+  <div class="toggle-row" style="margin-top:8px">
+    <button class="toggle-btn active" id="ai-mode-visual" onclick="setAiMode('visual')">◈ Visual Preview</button>
+    <button class="toggle-btn" id="ai-mode-json" onclick="setAiMode('json')">{ } JSON</button>
+  </div>
+
   <div class="analyze-row">
     <button class="btn-ai" id="btn-ai-analyze" onclick="runAiAnalyze()">✦ AI Analyze</button>
+    <button class="btn-quick" onclick="runQuickAnalyze()">◎ Quick</button>
     <button class="btn-quick" onclick="parent.postMessage({pluginMessage:{type:'scan-image-fills'}},'*')" title="Log IMAGE fills to console">⬡ Scan</button>
   </div>
 
@@ -669,29 +686,17 @@
 <div class="lh-toast" id="lh-toast"></div>
 
 <!-- ─── Actions: Builder ─────────────────────────────────────────────────────── -->
-<div class="actions" id="actions-builder" style="flex-direction:column;gap:6px">
-  <div class="toggle-row" style="margin-bottom:0">
-    <button class="toggle-btn active" id="mode-visual" onclick="setMode('visual')">◈ Visual Preview</button>
-    <button class="toggle-btn" id="mode-json" onclick="setMode('json')">{ } JSON</button>
-  </div>
-  <div style="display:flex;gap:8px;width:100%">
-    <button class="btn btn-secondary" onclick="cancel()">Cancel</button>
-    <button class="btn btn-success" id="btn-send-lh" disabled onclick="sendToLetterhead()">↑ Send Letter</button>
-    <button class="btn btn-primary" onclick="createBlock()">Create Block</button>
-  </div>
+<div class="actions" id="actions-builder">
+  <button class="btn btn-secondary" onclick="cancel()">Cancel</button>
+  <button class="btn btn-success" id="btn-send-lh" disabled onclick="sendToLetterhead()">↑ Send Letter</button>
+  <button class="btn btn-primary" onclick="createBlock()">Create Block</button>
 </div>
 
 <!-- ─── Actions: Importer ────────────────────────────────────────────────────── -->
-<div class="actions" id="actions-importer" style="display:none;flex-direction:column;gap:6px">
-  <div class="toggle-row" style="margin-bottom:0">
-    <button class="toggle-btn active" id="ai-mode-visual" onclick="setAiMode('visual')">◈ Visual Preview</button>
-    <button class="toggle-btn" id="ai-mode-json" onclick="setAiMode('json')">{ } JSON</button>
-  </div>
-  <div style="display:flex;gap:8px;width:100%">
-    <button class="btn btn-secondary" onclick="cancel()">Cancel</button>
-    <button class="btn btn-success" id="btn-send-lh-imp" disabled onclick="sendToLetterheadImporter()">↑ Send Letter</button>
-    <button class="btn btn-primary" id="btn-generate" disabled onclick="generateBlocks()">Create Blocks</button>
-  </div>
+<div class="actions" id="actions-importer" style="display:none">
+  <button class="btn btn-secondary" onclick="cancel()">Cancel</button>
+  <button class="btn btn-success" id="btn-send-lh-imp" disabled onclick="sendToLetterheadImporter()">↑ Send Letter</button>
+  <button class="btn btn-primary" id="btn-generate" disabled onclick="generateBlocks()">Generate Blocks</button>
 </div>
 
 <script>
@@ -944,6 +949,13 @@ const BLOCK_BADGE_COLORS = {
 let detectedBlocks = [];
 let forceAiStyles = (() => { try { return localStorage.getItem('lh_force_ai_styles') === 'true'; } catch(e) { return false; } })();
 
+// ─── Quick (heuristic) analyze ─────────────────────────────────────────────────
+function runQuickAnalyze() {
+  showLoading('Analyzing selection…');
+  document.getElementById('btn-generate').disabled = true;
+  parent.postMessage({ pluginMessage: { type: 'analyze-selection' } }, '*');
+}
+
 // ─── AI analyze ────────────────────────────────────────────────────────────────
 function runAiAnalyze() {
   document.getElementById('no-key-warning').style.display = 'none';
@@ -1051,7 +1063,7 @@ async function handleExportedSelection(items) {
       <div class="error-state">
         <strong>AI analysis failed</strong>
         ${esc(String(err.message || err))}
-        <br><br>Check your API key and try again.
+        <br><br>Check your API key or try Quick Analyze instead.
       </div>`;
     document.getElementById('btn-generate').disabled = true;
   }
