@@ -382,18 +382,82 @@
   .scan-result-name { color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .scan-result-meta { color: #94a3b8; white-space: nowrap; font-size: 10px; }
   .scan-result-hash { color: #6366f1; font-family: monospace; }
+
+  /* ─── Styles tab combobox ────────────────────────────────────────────────── */
+  .styles-combobox { position: relative; }
+  .styles-dropdown {
+    position: absolute; z-index: 100; left: 0; right: 0; top: calc(100% + 2px);
+    background: #fff; border: 1px solid #cbd5e1; border-radius: 4px;
+    max-height: 220px; overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  }
+  .styles-group {
+    padding: 6px 10px 2px;
+    font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+    color: #94a3b8; pointer-events: none;
+  }
+  .styles-option {
+    padding: 5px 10px; font-size: 12px; color: #1e293b; cursor: pointer;
+  }
+  .styles-option:hover, .styles-option.highlighted { background: #f1f5f9; }
+  .styles-option.active { color: #6366f1; font-weight: 600; }
+  .styles-desc {
+    font-size: 11px; color: #64748b; line-height: 1.5; margin-bottom: 10px;
+  }
+  .styles-panel-wrap { position: relative; }
+  .styles-panel-wrap.loading { pointer-events: none; }
+  .styles-panel-wrap.loading::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: rgba(241,245,249,0.75);
+    border-radius: 6px; z-index: 10;
+  }
+  .styles-panel-overlay {
+    position: absolute; inset: 0; z-index: 11;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px;
+  }
+  .styles-panel-overlay .spinner { width: 20px; height: 20px; border-width: 2.5px; }
+  .styles-panel-overlay-label {
+    font-size: 11px; font-weight: 600; color: #6366f1;
+  }
 </style>
 </head>
 <body>
 
 <!-- ─── Tab bar ──────────────────────────────────────────────────────────────── -->
 <div class="tabs">
-  <button class="tab active" id="tab-builder" onclick="switchPage('builder')">Block Builder</button>
-  <button class="tab" id="tab-importer" onclick="switchPage('importer')">Figma → Letterhead</button>
+  <button class="tab" id="tab-styles" onclick="switchPage('styles')">Styles</button>
+  <button class="tab active" id="tab-importer" onclick="switchPage('importer')">Figma → LH</button>
+  <button class="tab" id="tab-builder" onclick="switchPage('builder')">Builder</button>
+</div>
+
+<!-- ─── Page 0: Styles ───────────────────────────────────────────────────────── -->
+<div class="scroll-area" id="page-styles" style="display:none">
+  <h1>Block Style Defaults</h1>
+  <p class="styles-desc">Default styles applied when creating blocks in the builder and when using "Force Block Defaults" in Figma → LH.</p>
+
+  <div class="form-group" style="margin-bottom:4px">
+    <label>Block Type</label>
+    <div class="styles-combobox">
+      <input type="text" id="styles-search" placeholder="Search block type…" autocomplete="off"
+        oninput="filterStylesBlocks(this.value)"
+        onfocus="openStylesDropdown()"
+        onblur="closeStylesDropdown()"
+        onkeydown="stylesKeydown(event)">
+      <div class="styles-dropdown" id="styles-dropdown" style="display:none"></div>
+    </div>
+  </div>
+  <div id="styles-panel" class="styles-panel-wrap" style="margin-top:8px"></div>
+
+  <button class="btn-ai" id="btn-analyze-style-guide" onclick="runStyleGuideAnalyze()" style="width:100%;margin-top:8px">✦ AI Analyze Style Guide</button>
+  <div id="style-guide-status" style="display:none;margin-top:6px"></div>
+
+  <div style="height:8px"></div>
 </div>
 
 <!-- ─── Page 1: Block Builder ───────────────────────────────────────────────── -->
-<div class="scroll-area" id="page-builder">
+<div class="scroll-area" id="page-builder" style="display:none">
   <h1>Newsletter Block Builder</h1>
 
   <div class="form-group">
@@ -448,101 +512,6 @@
     </select>
   </div>
 
-  <div class="section">
-    <div class="section-hd" onclick="toggleSection('defs')">
-      Block Defaults <span id="defs-icon">▶</span>
-    </div>
-    <div class="section-bd hidden" id="defs-bd">
-      <div class="def-tabs">
-        <button class="def-tab active" id="dtab-paragraph" onclick="showDefsTab('paragraph')">Para</button>
-        <button class="def-tab" id="dtab-h1" onclick="showDefsTab('h1')">H1</button>
-        <button class="def-tab" id="dtab-h2" onclick="showDefsTab('h2')">H2</button>
-        <button class="def-tab" id="dtab-h3" onclick="showDefsTab('h3')">H3</button>
-        <button class="def-tab" id="dtab-h4" onclick="showDefsTab('h4')">H4</button>
-        <button class="def-tab" id="dtab-h5" onclick="showDefsTab('h5')">H5</button>
-        <button class="def-tab" id="dtab-h6" onclick="showDefsTab('h6')">H6</button>
-      </div>
-      <div id="dpanel"></div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-hd" onclick="toggleSection('common')">
-      Common Settings <span id="common-icon">▶</span>
-    </div>
-    <div class="section-bd hidden" id="common-bd">
-      <div class="grid-2">
-        <div class="form-group">
-          <label>Background</label>
-          <div class="color-row">
-            <input type="color" id="c_bg" value="#FFFFFF" oninput="syncPicker('c_bg')">
-            <input type="text" id="c_bg_t" value="#FFFFFF" oninput="syncText('c_bg')">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Text Color</label>
-          <div class="color-row">
-            <input type="color" id="c_tc" value="#020617" oninput="syncPicker('c_tc')">
-            <input type="text" id="c_tc_t" value="#020617" oninput="syncText('c_tc')">
-          </div>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>Padding</label>
-        <div class="grid-4">
-          <div><input type="number" id="c_pt" value="10" min="0"><small>Top</small></div>
-          <div><input type="number" id="c_pr" value="25" min="0"><small>Right</small></div>
-          <div><input type="number" id="c_pb" value="10" min="0"><small>Bottom</small></div>
-          <div><input type="number" id="c_pl" value="25" min="0"><small>Left</small></div>
-        </div>
-      </div>
-
-      <div class="grid-2">
-        <div class="form-group">
-          <label>Font Size</label>
-          <input type="number" id="c_fs" value="14" min="1">
-        </div>
-        <div class="form-group">
-          <label>Line Height</label>
-          <input type="number" id="c_lh" value="1.4" min="0.5" step="0.1">
-        </div>
-      </div>
-
-      <div class="grid-2">
-        <div class="form-group">
-          <label>Default Font</label>
-          <input type="text" id="c_font" value="Arial">
-        </div>
-        <div class="form-group">
-          <label>Font Fallback</label>
-          <input type="text" id="c_fontfb" value="Arial">
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>Border</label>
-        <div class="grid-2" style="margin-bottom:5px">
-          <div class="color-row">
-            <input type="color" id="c_bc" value="#CCCCCC" oninput="syncPicker('c_bc')">
-            <input type="text" id="c_bc_t" value="transparent" oninput="syncText('c_bc')">
-          </div>
-          <select id="c_bs">
-            <option value="solid">Solid</option>
-            <option value="dashed">Dashed</option>
-            <option value="dotted">Dotted</option>
-          </select>
-        </div>
-        <div class="grid-4">
-          <div><input type="number" id="c_bt" value="0" min="0"><small>Top</small></div>
-          <div><input type="number" id="c_br" value="0" min="0"><small>Right</small></div>
-          <div><input type="number" id="c_bb" value="0" min="0"><small>Bottom</small></div>
-          <div><input type="number" id="c_bl" value="0" min="0"><small>Left</small></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <div id="specific"></div>
 
   <!-- Letterhead API section -->
@@ -576,7 +545,7 @@
 </div>
 
 <!-- ─── Page 2: Figma → Letterhead ──────────────────────────────────────────── -->
-<div class="scroll-area" id="page-importer" style="display:none">
+<div class="scroll-area" id="page-importer">
   <h1>Figma → Letterhead</h1>
 
   <!-- AI settings section -->
@@ -606,27 +575,9 @@
     Add your API key above to use AI Analyze.
   </div>
 
-  <!-- Block Defaults (shared with builder) -->
-  <div class="section">
-    <div class="section-hd" onclick="toggleSection('defs-imp')">
-      Block Defaults <span id="defs-imp-icon">▶</span>
-    </div>
-    <div class="section-bd hidden" id="defs-imp-bd">
-      <div class="def-tabs">
-        <button class="def-tab active" id="dtab-imp-paragraph" onclick="showDefsTabImp('paragraph')">Para</button>
-        <button class="def-tab" id="dtab-imp-h1" onclick="showDefsTabImp('h1')">H1</button>
-        <button class="def-tab" id="dtab-imp-h2" onclick="showDefsTabImp('h2')">H2</button>
-        <button class="def-tab" id="dtab-imp-h3" onclick="showDefsTabImp('h3')">H3</button>
-        <button class="def-tab" id="dtab-imp-h4" onclick="showDefsTabImp('h4')">H4</button>
-        <button class="def-tab" id="dtab-imp-h5" onclick="showDefsTabImp('h5')">H5</button>
-        <button class="def-tab" id="dtab-imp-h6" onclick="showDefsTabImp('h6')">H6</button>
-      </div>
-      <div id="dpanel-imp"></div>
-      <div class="chk" style="margin:8px 0 2px">
-        <input type="checkbox" id="force-ai-styles" onchange="setForceAiStyles(this.checked)">
-        <label for="force-ai-styles">Force Block Defaults on AI styles</label>
-      </div>
-    </div>
+  <div class="chk" style="margin-bottom:10px">
+    <input type="checkbox" id="force-ai-styles" onchange="setForceAiStyles(this.checked)">
+    <label for="force-ai-styles">Force Block Defaults on AI styles</label>
   </div>
 
   <!-- Letterhead API section (importer) -->
@@ -636,20 +587,20 @@
     </div>
     <div class="section-bd hidden" id="lh-api-imp-bd">
       <div class="form-group">
-        <label>Letter Title <span style="font-weight:400;text-transform:none">(optional)</span></label>
-        <input type="text" id="lh-letter-title-imp" placeholder="My Newsletter">
-      </div>
-      <div class="form-group">
-        <label>Base URL</label>
-        <input type="url" id="lh-base-url-imp" value="https://qa-devin.api.tryletterhead.dev">
-      </div>
-      <div class="form-group">
         <label>API Key</label>
         <input type="password" id="lh-api-key-imp" placeholder="Bearer token" autocomplete="off">
       </div>
       <div class="form-group">
         <label>Uploadcare Public Key</label>
         <input type="password" id="uc-public-key-imp" placeholder="demopublickey" autocomplete="off" onchange="saveUcKeyFromField('uc-public-key-imp')" onpaste="setTimeout(()=>saveUcKeyFromField('uc-public-key-imp'),0)">
+      </div>
+      <div class="form-group">
+        <label>Base URL</label>
+        <input type="url" id="lh-base-url-imp" value="https://qa-devin.api.tryletterhead.dev">
+      </div>
+      <div class="form-group">
+        <label>Letter Title <span style="font-weight:400;text-transform:none">(optional)</span></label>
+        <input type="text" id="lh-letter-title-imp" placeholder="My Newsletter">
       </div>
     </div>
   </div>
@@ -669,7 +620,7 @@
 <div class="lh-toast" id="lh-toast"></div>
 
 <!-- ─── Actions: Builder ─────────────────────────────────────────────────────── -->
-<div class="actions" id="actions-builder" style="flex-direction:column;gap:6px">
+<div class="actions" id="actions-builder" style="display:none;flex-direction:column;gap:6px">
   <div class="toggle-row" style="margin-bottom:0">
     <button class="toggle-btn active" id="mode-visual" onclick="setMode('visual')">◈ Visual Preview</button>
     <button class="toggle-btn" id="mode-json" onclick="setMode('json')">{ } JSON</button>
@@ -682,7 +633,7 @@
 </div>
 
 <!-- ─── Actions: Importer ────────────────────────────────────────────────────── -->
-<div class="actions" id="actions-importer" style="display:none;flex-direction:column;gap:6px">
+<div class="actions" id="actions-importer" style="flex-direction:column;gap:6px">
   <div class="toggle-row" style="margin-bottom:0">
     <button class="toggle-btn active" id="ai-mode-visual" onclick="setAiMode('visual')">◈ Visual Preview</button>
     <button class="toggle-btn" id="ai-mode-json" onclick="setAiMode('json')">{ } JSON</button>
@@ -697,10 +648,12 @@
 <script>
 // ─── Page switching ───────────────────────────────────────────────────────────
 function switchPage(page) {
+  document.getElementById('page-styles').style.display = page === 'styles' ? '' : 'none';
   document.getElementById('page-builder').style.display = page === 'builder' ? '' : 'none';
   document.getElementById('page-importer').style.display = page === 'importer' ? '' : 'none';
   document.getElementById('actions-builder').style.display = page === 'builder' ? '' : 'none';
   document.getElementById('actions-importer').style.display = page === 'importer' ? '' : 'none';
+  document.getElementById('tab-styles').classList.toggle('active', page === 'styles');
   document.getElementById('tab-builder').classList.toggle('active', page === 'builder');
   document.getElementById('tab-importer').classList.toggle('active', page === 'importer');
 }
@@ -720,6 +673,9 @@ window.onmessage = (event) => {
   }
   if (msg.type === 'uc-key-loaded') {
     onUcKeyLoaded(msg.key || '');
+  }
+  if (msg.type === 'block-defaults-loaded') {
+    onBlockDefaultsLoaded(msg.data || '');
   }
   if (msg.type === 'selection-analyzed') {
     renderAnalyzedBlocks(msg.blocks || [], 'heuristic');
@@ -803,6 +759,25 @@ function onUcKeyLoaded(key) {
       if (input && !input.value) input.value = key;
     });
   }
+}
+
+function onBlockDefaultsLoaded(data) {
+  if (!data) return;
+  try {
+    const parsed = JSON.parse(data);
+    const init = getInitialDefaults();
+    if (parsed.heading) {
+      for (const lv of ['h1','h2','h3','h4','h5','h6']) {
+        if (parsed.heading[lv]) parsed[lv] = Object.assign({}, init[lv], parsed.heading[lv]);
+      }
+      delete parsed.heading;
+    }
+    for (const t of Object.keys(init)) {
+      parsed[t] = Object.assign({}, init[t], parsed[t] || {});
+    }
+    blockDefaults = parsed;
+    renderStylesPanelForCurrentType();
+  } catch(e) {}
 }
 
 function saveUcKeyFromField(sourceId) {
@@ -942,6 +917,7 @@ const BLOCK_BADGE_COLORS = {
 };
 
 let detectedBlocks = [];
+let pendingAnalysisType = 'blocks';
 let forceAiStyles = (() => { try { return localStorage.getItem('lh_force_ai_styles') === 'true'; } catch(e) { return false; } })();
 
 // ─── AI analyze ────────────────────────────────────────────────────────────────
@@ -963,6 +939,7 @@ function runAiAnalyze() {
   }
   showLoading('Exporting layers from Figma…');
   document.getElementById('btn-generate').disabled = true;
+  pendingAnalysisType = 'blocks';
   parent.postMessage({ pluginMessage: { type: 'export-selection' } }, '*');
 }
 
@@ -972,6 +949,10 @@ function showLoading(msg) {
 }
 
 async function handleExportedSelection(items) {
+  if (pendingAnalysisType === 'style-guide') {
+    await handleStyleGuideExport(items);
+    return;
+  }
   if (!items || items.length === 0) {
     document.getElementById('importer-results').innerHTML = `
       <div class="empty-state">
@@ -1054,6 +1035,239 @@ async function handleExportedSelection(items) {
         <br><br>Check your API key and try again.
       </div>`;
     document.getElementById('btn-generate').disabled = true;
+  }
+}
+
+// ─── Style guide analysis ──────────────────────────────────────────────────────
+
+const STYLE_GUIDE_SYSTEM_PROMPT = `You analyze Figma designs to extract typography and color settings for a newsletter platform called Letterhead.
+
+Look at all text elements in the provided design and extract their styles. Return a JSON object with this exact structure:
+
+{
+  "paragraph": {
+    "fontSize": <integer px>,
+    "lineHeight": <decimal ratio e.g. 1.5>,
+    "textColor": "<#HEX uppercase>",
+    "backgroundColor": "<#HEX uppercase>",
+    "paddingTop": <integer>,
+    "paddingRight": <integer>,
+    "paddingBottom": <integer>,
+    "paddingLeft": <integer>,
+    "font": "<font family name>",
+    "fontFallback": "<web-safe fallback>"
+  },
+  "heading": {
+    "h1": { same 9 fields },
+    "h2": { same 9 fields },
+    "h3": { same 9 fields },
+    "h4": { same 9 fields },
+    "h5": { same 9 fields },
+    "h6": { same 9 fields }
+  }
+}
+
+RULES:
+- paragraph: smallest or most common body text style; if none found use the most common text node
+- h1: largest heading, h2: second largest, h3–h6: progressively smaller
+- If fewer than 6 heading levels exist, derive missing ones by reducing fontSize by 2–4px per level, keeping same font and color
+- textColor: hex of the text fill (uppercase), default #020617
+- backgroundColor: hex of the nearest container background, default #FFFFFF
+- fontSize: integer pixel value extracted from metadata fontSize fields
+- lineHeight: if a pixel value, divide by fontSize to get ratio; if already a multiplier use directly; default 1.4 for paragraph, 1.2 for headings
+- font: exact font family from the metadata fontStyle or node name (e.g. "Inter", "Georgia")
+- fontFallback: closest web-safe alternative
+- paddingTop/Right/Bottom/Left: from container frame padding in metadata; if not found use 10, 25, 10, 25
+- Use allTextChildren and children arrays in the metadata to find all text nodes and their styles
+
+OUTPUT: Raw JSON only. No markdown fences, no prose, no comments. Must pass JSON.parse() directly.`;
+
+function setStylesPanelLoading(label) {
+  const wrap = document.getElementById('styles-panel');
+  if (!wrap) return;
+  wrap.classList.add('loading');
+  let overlay = wrap.querySelector('.styles-panel-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.className = 'styles-panel-overlay';
+    wrap.appendChild(overlay);
+  }
+  overlay.innerHTML = `<span class="spinner"></span><span class="styles-panel-overlay-label">${esc(label)}</span>`;
+}
+
+function clearStylesPanelLoading() {
+  const wrap = document.getElementById('styles-panel');
+  if (!wrap) return;
+  wrap.classList.remove('loading');
+  const overlay = wrap.querySelector('.styles-panel-overlay');
+  if (overlay) overlay.remove();
+}
+
+function runStyleGuideAnalyze() {
+  document.getElementById('no-key-warning').style.display = 'none';
+  const activeKey = activeProvider === 'openai' ? storedOpenaiKey : storedApiKey;
+  if (!activeKey) {
+    document.getElementById('no-key-warning').style.display = 'block';
+    document.getElementById('api-key-bd').classList.add('open');
+    document.getElementById('api-key-icon').textContent = '▼';
+    return;
+  }
+  const status = document.getElementById('style-guide-status');
+  status.style.display = 'block';
+  status.innerHTML = '<div class="loading-state"><span class="spinner"></span>Exporting selection from Figma…</div>';
+  document.getElementById('btn-analyze-style-guide').disabled = true;
+  setStylesPanelLoading('Exporting from Figma…');
+  pendingAnalysisType = 'style-guide';
+  parent.postMessage({ pluginMessage: { type: 'export-selection' } }, '*');
+}
+
+async function handleStyleGuideExport(items) {
+  const status = document.getElementById('style-guide-status');
+  const btn = document.getElementById('btn-analyze-style-guide');
+  pendingAnalysisType = 'blocks';
+
+  if (!items || items.length === 0) {
+    clearStylesPanelLoading();
+    status.innerHTML = '<div class="error-state"><strong>No selection</strong>Select a style guide frame in Figma and try again.</div>';
+    btn.disabled = false;
+    return;
+  }
+
+  const providerLabel = activeProvider === 'openai' ? 'GPT-4o' : 'Claude';
+  status.innerHTML = `<div class="loading-state"><span class="spinner"></span>Asking ${esc(providerLabel)} to extract styles…</div>`;
+  setStylesPanelLoading(`Asking ${providerLabel}…`);
+
+  try {
+    const prepared = items.map(item => ({
+      nodeId: item.nodeId,
+      nodeName: item.nodeName,
+      base64: uint8ToBase64(item.imageBytes),
+      metadata: item.metadata,
+      html: item.html || '',
+    }));
+
+    const activeKey = activeProvider === 'openai' ? storedOpenaiKey : storedApiKey;
+    const styles = activeProvider === 'openai'
+      ? await callOpenAiStyleGuide(prepared, activeKey)
+      : await callClaudeStyleGuide(prepared, activeKey);
+
+    applyStyleGuideToDefaults(styles);
+    clearStylesPanelLoading();
+
+    status.innerHTML = '<div style="padding:8px 10px;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:5px;font-size:11px;font-weight:600;">✓ Block Defaults updated from style guide</div>';
+    setTimeout(() => { status.style.display = 'none'; }, 3500);
+  } catch (err) {
+    clearStylesPanelLoading();
+    status.innerHTML = `<div class="error-state"><strong>Style guide analysis failed</strong>${esc(String(err.message || err))}</div>`;
+  }
+  btn.disabled = false;
+}
+
+function applyStyleGuideToDefaults(styles) {
+  const merge = (target, src) => {
+    if (!src) return target;
+    return Object.assign({}, target, {
+      fontSize: src.fontSize || target.fontSize,
+      lineHeight: src.lineHeight || target.lineHeight,
+      textColor: src.textColor || target.textColor,
+      backgroundColor: src.backgroundColor || target.backgroundColor,
+      paddingTop: src.paddingTop !== undefined ? src.paddingTop : target.paddingTop,
+      paddingRight: src.paddingRight !== undefined ? src.paddingRight : target.paddingRight,
+      paddingBottom: src.paddingBottom !== undefined ? src.paddingBottom : target.paddingBottom,
+      paddingLeft: src.paddingLeft !== undefined ? src.paddingLeft : target.paddingLeft,
+      font: src.font || target.font,
+      fontFallback: src.fontFallback || target.fontFallback,
+    });
+  };
+  if (styles && styles.paragraph) blockDefaults.paragraph = merge(blockDefaults.paragraph, styles.paragraph);
+  if (styles && styles.heading) {
+    for (const lv of ['h1','h2','h3','h4','h5','h6']) {
+      if (styles.heading[lv]) blockDefaults[lv] = merge(blockDefaults[lv], styles.heading[lv]);
+    }
+  }
+  saveDefaults();
+  renderStylesPanelForCurrentType();
+}
+
+async function callClaudeStyleGuide(items, apiKey) {
+  const content = [];
+  if (items.length === 1) {
+    content.push({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: items[0].base64 } });
+    content.push({ type: 'text', text: `Node: "${items[0].nodeName}"\nMetadata:\n${JSON.stringify(items[0].metadata, null, 2)}\n\nHTML:\n${items[0].html}` });
+  } else {
+    content.push({ type: 'text', text: 'Extract unified typography settings from all designs below:' });
+    items.forEach((item, i) => {
+      content.push({ type: 'text', text: `\n=== Design ${i + 1}: "${item.nodeName}" ===` });
+      content.push({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: item.base64 } });
+      content.push({ type: 'text', text: `Metadata:\n${JSON.stringify(item.metadata, null, 2)}\n\nHTML:\n${item.html}` });
+    });
+  }
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      system: STYLE_GUIDE_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content }],
+    }),
+  });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    let parsed = {};
+    try { parsed = JSON.parse(errBody); } catch (_) {}
+    throw new Error(`[${res.status}] ${parsed.error?.message || errBody || 'HTTP ' + res.status}`);
+  }
+  const data = await res.json();
+  return parseStyleGuide(data.content?.[0]?.text || '');
+}
+
+async function callOpenAiStyleGuide(items, apiKey) {
+  const userContent = [];
+  if (items.length === 1) {
+    userContent.push({ type: 'image_url', image_url: { url: 'data:image/png;base64,' + items[0].base64 } });
+    userContent.push({ type: 'text', text: `Node: "${items[0].nodeName}"\nMetadata:\n${JSON.stringify(items[0].metadata, null, 2)}\n\nHTML:\n${items[0].html}` });
+  } else {
+    userContent.push({ type: 'text', text: 'Extract unified typography settings from all designs below:' });
+    items.forEach((item, i) => {
+      userContent.push({ type: 'text', text: `\n=== Design ${i + 1}: "${item.nodeName}" ===` });
+      userContent.push({ type: 'image_url', image_url: { url: 'data:image/png;base64,' + item.base64 } });
+      userContent.push({ type: 'text', text: `Metadata:\n${JSON.stringify(item.metadata, null, 2)}\n\nHTML:\n${item.html}` });
+    });
+  }
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      max_tokens: 2048,
+      messages: [
+        { role: 'system', content: STYLE_GUIDE_SYSTEM_PROMPT },
+        { role: 'user', content: userContent },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    let parsed = {};
+    try { parsed = JSON.parse(errBody); } catch (_) {}
+    throw new Error(`[${res.status}] ${parsed.error?.message || errBody || 'HTTP ' + res.status}`);
+  }
+  const data = await res.json();
+  return parseStyleGuide(data.choices?.[0]?.message?.content || '');
+}
+
+function parseStyleGuide(raw) {
+  const stripped = raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();
+  try { return JSON.parse(stripped); } catch (_) {
+    const match = stripped.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Could not parse style guide response as JSON. Raw: ' + stripped.substring(0, 200));
   }
 }
 
@@ -1635,24 +1849,11 @@ function setForceAiStyles(val) {
 }
 
 function applyBlockDefaults(block) {
-  const baseFields = {
-    defaultFont: block.defaultFont ?? 'Arial',
-    fontFallback: block.fontFallback ?? 'Arial',
-    listLineHeight: block.listLineHeight ?? null,
-    mobilePadding: block.mobilePadding ?? { top: 10, right: 25, bottom: 10, left: 25 },
-    useMobilePadding: block.useMobilePadding ?? false,
-    extendBgColor: block.extendBgColor ?? false,
-    delta: block.delta ?? {},
-  };
-  let d;
-  if (block.type === 'heading') {
-    const level = block.blockModel?.headingType || 'h2';
-    d = blockDefaults.heading[level] || blockDefaults.heading.h2;
-  } else if (['paragraph', 'blockquote', 'footer'].includes(block.type)) {
-    d = blockDefaults.paragraph;
-  } else {
-    return Object.assign({}, block, baseFields);
-  }
+  const key = block.type === 'heading'
+    ? (block.blockModel?.headingType || 'h2')
+    : block.type;
+  const d = blockDefaults[key];
+  if (!d) return block;
   return Object.assign({}, block, {
     textColor: d.textColor,
     backgroundColor: d.backgroundColor,
@@ -1665,7 +1866,7 @@ function applyBlockDefaults(block) {
     defaultFont: d.font,
     fontFallback: d.fontFallback,
     listLineHeight: block.listLineHeight ?? null,
-    mobilePadding: block.mobilePadding ?? { top: 10, right: 25, bottom: 10, left: 25 },
+    mobilePadding: block.mobilePadding ?? { top: d.paddingTop, right: d.paddingRight, bottom: d.paddingBottom, left: d.paddingLeft },
     useMobilePadding: block.useMobilePadding ?? false,
     extendBgColor: block.extendBgColor ?? false,
     delta: block.delta ?? {},
@@ -1851,20 +2052,69 @@ function chk(id, fb) {
 }
 
 // ─── Builder: block defaults ──────────────────────────────────────────────────
+const ALL_STYLE_TYPES = [
+  { group: 'Text', types: [
+    { key: 'paragraph', label: 'Paragraph' },
+    { key: 'h1', label: 'H1' }, { key: 'h2', label: 'H2' }, { key: 'h3', label: 'H3' },
+    { key: 'h4', label: 'H4' }, { key: 'h5', label: 'H5' }, { key: 'h6', label: 'H6' },
+    { key: 'blockquote', label: 'Blockquote' }, { key: 'footer', label: 'Footer' },
+  ]},
+  { group: 'Media', types: [
+    { key: 'image', label: 'Image' }, { key: 'logo', label: 'Logo' },
+    { key: 'youtube', label: 'YouTube' }, { key: 'audio', label: 'Audio' },
+  ]},
+  { group: 'Interactive', types: [
+    { key: 'button', label: 'Button' }, { key: 'poll', label: 'Poll' },
+  ]},
+  { group: 'Layout', types: [
+    { key: 'layout', label: 'Layout' },
+    { key: 'nested-layout-2-column', label: '2-Column Layout' },
+    { key: 'divider', label: 'Divider' },
+  ]},
+  { group: 'Content', types: [
+    { key: 'dynamic', label: 'Dynamic (URL Embed)' }, { key: 'curation', label: 'Curation' },
+    { key: 'newrss', label: 'New RSS' }, { key: 'wordpress', label: 'WordPress' },
+    { key: 'rss', label: 'RSS (Legacy)' }, { key: 'news', label: 'News' },
+  ]},
+  { group: 'Ads & Promo', types: [
+    { key: 'newpromotion', label: 'New Promotion' }, { key: 'promotion', label: 'Promotion (Legacy)' },
+  ]},
+  { group: 'Social', types: [
+    { key: 'profile', label: 'Profile' }, { key: 'share', label: 'Share' },
+  ]},
+  { group: 'Integrations', types: [
+    { key: 'html', label: 'HTML' }, { key: 'aiText', label: 'AI Text' },
+    { key: 'evvnt', label: 'Evvnt Events' }, { key: 'revContent', label: 'RevContent' },
+    { key: 'iterable', label: 'Iterable' }, { key: 'googleDocs', label: 'Google Docs' },
+    { key: 'view_in_browser', label: 'View in Browser' },
+  ]},
+];
+
+function getAllStyleTypesList() {
+  return ALL_STYLE_TYPES.flatMap(g => g.types);
+}
+
 function getInitialDefaults() {
   const base = (fs, lh) => ({
     fontSize: fs, lineHeight: lh,
     textColor: '#020617', backgroundColor: '#FFFFFF',
     paddingTop: 10, paddingRight: 25, paddingBottom: 10, paddingLeft: 25,
-    font: 'Arial', fontFallback: 'Arial'
+    font: 'Arial', fontFallback: 'Arial',
+    borderColor: 'transparent', borderStyle: 'solid',
+    borderTop: 0, borderRight: 0, borderBottom: 0, borderLeft: 0,
   });
-  return {
-    paragraph: base(14, 1.4),
-    heading: {
-      h1: base(36, 1.2), h2: base(30, 1.2), h3: base(24, 1.2),
-      h4: base(20, 1.2), h5: base(18, 1.2), h6: base(16, 1.2)
+  const fsSizes = { button: 16, evvnt: 24 };
+  const lhVals = { button: 1 };
+  const headingSizes = { h1: 36, h2: 30, h3: 24, h4: 20, h5: 18, h6: 16 };
+  const d = {};
+  for (const { key } of getAllStyleTypesList()) {
+    if (headingSizes[key]) {
+      d[key] = base(headingSizes[key], 1.2);
+    } else {
+      d[key] = base(fsSizes[key] || 14, lhVals[key] || 1.4);
     }
-  };
+  }
+  return d;
 }
 
 let blockDefaults = (() => {
@@ -1873,9 +2123,14 @@ let blockDefaults = (() => {
     if (s) {
       const parsed = JSON.parse(s);
       const init = getInitialDefaults();
-      parsed.paragraph = Object.assign({}, init.paragraph, parsed.paragraph);
-      for (const lv of ['h1','h2','h3','h4','h5','h6']) {
-        parsed.heading[lv] = Object.assign({}, init.heading[lv], (parsed.heading || {})[lv]);
+      if (parsed.heading) {
+        for (const lv of ['h1','h2','h3','h4','h5','h6']) {
+          if (parsed.heading[lv]) parsed[lv] = Object.assign({}, init[lv], parsed.heading[lv]);
+        }
+        delete parsed.heading;
+      }
+      for (const t of Object.keys(init)) {
+        parsed[t] = Object.assign({}, init[t], parsed[t] || {});
       }
       return parsed;
     }
@@ -1884,113 +2139,186 @@ let blockDefaults = (() => {
 })();
 
 function saveDefaults() {
-  try { localStorage.setItem('lh_block_defaults', JSON.stringify(blockDefaults)); } catch(e) {}
+  const json = JSON.stringify(blockDefaults);
+  try { localStorage.setItem('lh_block_defaults', json); } catch(e) {}
+  parent.postMessage({ pluginMessage: { type: 'save-block-defaults', data: json } }, '*');
 }
 
-function getDefsTarget(tab) {
-  return tab === 'paragraph' ? blockDefaults.paragraph : blockDefaults.heading[tab];
+// ─── Styles tab: combobox + panel ────────────────────────────────────────────
+
+let activeStylesKey = 'paragraph';
+let stylesDropdownOpen = false;
+let stylesHighlightedIdx = -1;
+let stylesFilteredOptions = getAllStyleTypesList();
+
+function filterStylesBlocks(query) {
+  openStylesDropdown();
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    renderStylesDropdown(ALL_STYLE_TYPES);
+    stylesFilteredOptions = getAllStyleTypesList();
+  } else {
+    stylesFilteredOptions = getAllStyleTypesList().filter(t => t.label.toLowerCase().includes(q));
+    const groups = ALL_STYLE_TYPES.map(g => ({
+      group: g.group,
+      types: g.types.filter(t => t.label.toLowerCase().includes(q))
+    })).filter(g => g.types.length > 0);
+    renderStylesDropdown(groups);
+  }
+  stylesHighlightedIdx = -1;
 }
 
-let activeDefsTab = 'paragraph';
+function renderStylesDropdown(groups) {
+  const dd = document.getElementById('styles-dropdown');
+  if (!dd) return;
+  dd.innerHTML = groups.map(g => `
+    <div class="styles-group">${g.group}</div>
+    ${g.types.map(t => `<div class="styles-option${t.key === activeStylesKey ? ' active' : ''}" onmousedown="selectStylesBlock('${t.key}','${esc(t.label)}')">${esc(t.label)}</div>`).join('')}
+  `).join('');
+}
 
-function renderDefsPanel(tab, pfx) {
-  const d = getDefsTarget(tab);
-  const p = (pfx || 'dp') + tab;
+function openStylesDropdown() {
+  const dd = document.getElementById('styles-dropdown');
+  if (!dd) return;
+  dd.style.display = 'block';
+  stylesDropdownOpen = true;
+  const q = (document.getElementById('styles-search')?.value || '').trim();
+  if (!q) {
+    renderStylesDropdown(ALL_STYLE_TYPES);
+    stylesFilteredOptions = getAllStyleTypesList();
+  }
+}
+
+function closeStylesDropdown() {
+  setTimeout(() => {
+    const dd = document.getElementById('styles-dropdown');
+    if (dd) dd.style.display = 'none';
+    stylesDropdownOpen = false;
+    const inp = document.getElementById('styles-search');
+    if (inp) {
+      const found = getAllStyleTypesList().find(t => t.key === activeStylesKey);
+      if (found) inp.value = found.label;
+    }
+  }, 150);
+}
+
+function selectStylesBlock(key, label) {
+  activeStylesKey = key;
+  const inp = document.getElementById('styles-search');
+  if (inp) inp.value = label;
+  const dd = document.getElementById('styles-dropdown');
+  if (dd) dd.style.display = 'none';
+  stylesDropdownOpen = false;
+  renderStylesPanelForCurrentType();
+}
+
+function stylesKeydown(e) {
+  if (!stylesDropdownOpen) {
+    if (e.key === 'ArrowDown' || e.key === 'Enter') openStylesDropdown();
+    return;
+  }
+  const opts = document.querySelectorAll('#styles-dropdown .styles-option');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    stylesHighlightedIdx = Math.min(stylesHighlightedIdx + 1, opts.length - 1);
+    opts.forEach((el, i) => el.classList.toggle('highlighted', i === stylesHighlightedIdx));
+    if (opts[stylesHighlightedIdx]) opts[stylesHighlightedIdx].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    stylesHighlightedIdx = Math.max(stylesHighlightedIdx - 1, 0);
+    opts.forEach((el, i) => el.classList.toggle('highlighted', i === stylesHighlightedIdx));
+    if (opts[stylesHighlightedIdx]) opts[stylesHighlightedIdx].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (stylesHighlightedIdx >= 0 && opts[stylesHighlightedIdx]) {
+      opts[stylesHighlightedIdx].dispatchEvent(new MouseEvent('mousedown'));
+    }
+  } else if (e.key === 'Escape') {
+    closeStylesDropdown();
+  }
+}
+
+function renderStylesPanelForCurrentType() {
+  const panel = document.getElementById('styles-panel');
+  if (!panel) return;
+  panel.innerHTML = renderStylesPanel(activeStylesKey);
+}
+
+function renderStylesPanel(key) {
+  const d = blockDefaults[key] || blockDefaults.paragraph;
+  const p = 'sp_' + key.replace(/[^a-zA-Z0-9]/g, '_');
+  const bc = d.borderColor === 'transparent' ? '#cccccc' : d.borderColor;
   return `
-    <div class="grid-2">
-      <div class="form-group"><label>Font Size</label>
-        <input type="number" id="${p}fs" value="${d.fontSize}" min="1" oninput="updateDefNum('${tab}','fontSize',this.value)"></div>
-      <div class="form-group"><label>Line Height</label>
-        <input type="number" id="${p}lh" value="${d.lineHeight}" min="0.5" step="0.1" oninput="updateDefNum('${tab}','lineHeight',this.value)"></div>
-    </div>
-    <div class="grid-2">
-      <div class="form-group"><label>Text Color</label>
-        <div class="color-row">
-          <input type="color" id="${p}tc" value="${d.textColor}" oninput="syncPicker('${p}tc');updateDef('${tab}','textColor',this.value)">
-          <input type="text" id="${p}tc_t" value="${d.textColor}" oninput="syncText('${p}tc');if(/^#[0-9A-Fa-f]{6}$/.test(this.value))updateDef('${tab}','textColor',this.value)">
-        </div></div>
-      <div class="form-group"><label>Background</label>
-        <div class="color-row">
-          <input type="color" id="${p}bg" value="${d.backgroundColor}" oninput="syncPicker('${p}bg');updateDef('${tab}','backgroundColor',this.value)">
-          <input type="text" id="${p}bg_t" value="${d.backgroundColor}" oninput="syncText('${p}bg');if(/^#[0-9A-Fa-f]{6}$/.test(this.value))updateDef('${tab}','backgroundColor',this.value)">
-        </div></div>
-    </div>
-    <div class="form-group"><label>Padding</label>
-      <div class="grid-4">
-        <div><input type="number" id="${p}pt" value="${d.paddingTop}" min="0" oninput="updateDefInt('${tab}','paddingTop',this.value)"><small>Top</small></div>
-        <div><input type="number" id="${p}pr" value="${d.paddingRight}" min="0" oninput="updateDefInt('${tab}','paddingRight',this.value)"><small>Right</small></div>
-        <div><input type="number" id="${p}pb" value="${d.paddingBottom}" min="0" oninput="updateDefInt('${tab}','paddingBottom',this.value)"><small>Bottom</small></div>
-        <div><input type="number" id="${p}pl" value="${d.paddingLeft}" min="0" oninput="updateDefInt('${tab}','paddingLeft',this.value)"><small>Left</small></div>
-      </div></div>
-    <div class="grid-2">
-      <div class="form-group"><label>Font</label>
-        <input type="text" id="${p}font" value="${d.font}" oninput="updateDef('${tab}','font',this.value)"></div>
-      <div class="form-group"><label>Fallback</label>
-        <input type="text" id="${p}fb" value="${d.fontFallback}" oninput="updateDef('${tab}','fontFallback',this.value)"></div>
+    <div class="section">
+      <div class="section-bd" style="display:block">
+        <div class="grid-2">
+          <div class="form-group"><label>Background</label>
+            <div class="color-row">
+              <input type="color" id="${p}bg" value="${d.backgroundColor}" oninput="syncPicker('${p}bg');updateStyleDef('${key}','backgroundColor',this.value)">
+              <input type="text" id="${p}bg_t" value="${d.backgroundColor}" oninput="syncText('${p}bg');if(/^#[0-9A-Fa-f]{6}$/.test(this.value))updateStyleDef('${key}','backgroundColor',this.value)">
+            </div></div>
+          <div class="form-group"><label>Text Color</label>
+            <div class="color-row">
+              <input type="color" id="${p}tc" value="${d.textColor}" oninput="syncPicker('${p}tc');updateStyleDef('${key}','textColor',this.value)">
+              <input type="text" id="${p}tc_t" value="${d.textColor}" oninput="syncText('${p}tc');if(/^#[0-9A-Fa-f]{6}$/.test(this.value))updateStyleDef('${key}','textColor',this.value)">
+            </div></div>
+        </div>
+        <div class="form-group"><label>Padding</label>
+          <div class="grid-4">
+            <div><input type="number" id="${p}pt" value="${d.paddingTop}" min="0" oninput="updateStyleDefInt('${key}','paddingTop',this.value)"><small>Top</small></div>
+            <div><input type="number" id="${p}pr" value="${d.paddingRight}" min="0" oninput="updateStyleDefInt('${key}','paddingRight',this.value)"><small>Right</small></div>
+            <div><input type="number" id="${p}pb" value="${d.paddingBottom}" min="0" oninput="updateStyleDefInt('${key}','paddingBottom',this.value)"><small>Bottom</small></div>
+            <div><input type="number" id="${p}pl" value="${d.paddingLeft}" min="0" oninput="updateStyleDefInt('${key}','paddingLeft',this.value)"><small>Left</small></div>
+          </div></div>
+        <div class="grid-2">
+          <div class="form-group"><label>Font Size</label>
+            <input type="number" id="${p}fs" value="${d.fontSize}" min="1" oninput="updateStyleDefNum('${key}','fontSize',this.value)"></div>
+          <div class="form-group"><label>Line Height</label>
+            <input type="number" id="${p}lh" value="${d.lineHeight}" min="0.5" step="0.1" oninput="updateStyleDefNum('${key}','lineHeight',this.value)"></div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group"><label>Default Font</label>
+            <input type="text" id="${p}font" value="${d.font}" oninput="updateStyleDef('${key}','font',this.value)"></div>
+          <div class="form-group"><label>Font Fallback</label>
+            <input type="text" id="${p}fb" value="${d.fontFallback}" oninput="updateStyleDef('${key}','fontFallback',this.value)"></div>
+        </div>
+        <div class="form-group"><label>Border</label>
+          <div class="grid-2" style="margin-bottom:5px">
+            <div class="color-row">
+              <input type="color" id="${p}bc" value="${bc}" oninput="syncPicker('${p}bc');updateStyleDef('${key}','borderColor',this.value)">
+              <input type="text" id="${p}bc_t" value="${d.borderColor}" oninput="syncText('${p}bc');updateStyleDef('${key}','borderColor',this.value)">
+            </div>
+            <select id="${p}bs" onchange="updateStyleDef('${key}','borderStyle',this.value)">
+              <option value="solid"${d.borderStyle === 'solid' ? ' selected' : ''}>Solid</option>
+              <option value="dashed"${d.borderStyle === 'dashed' ? ' selected' : ''}>Dashed</option>
+              <option value="dotted"${d.borderStyle === 'dotted' ? ' selected' : ''}>Dotted</option>
+            </select>
+          </div>
+          <div class="grid-4">
+            <div><input type="number" id="${p}bt" value="${d.borderTop || 0}" min="0" oninput="updateStyleDefInt('${key}','borderTop',this.value)"><small>Top</small></div>
+            <div><input type="number" id="${p}br" value="${d.borderRight || 0}" min="0" oninput="updateStyleDefInt('${key}','borderRight',this.value)"><small>Right</small></div>
+            <div><input type="number" id="${p}bb" value="${d.borderBottom || 0}" min="0" oninput="updateStyleDefInt('${key}','borderBottom',this.value)"><small>Bottom</small></div>
+            <div><input type="number" id="${p}bl" value="${d.borderLeft || 0}" min="0" oninput="updateStyleDefInt('${key}','borderLeft',this.value)"><small>Left</small></div>
+          </div></div>
+      </div>
     </div>
   `;
 }
 
-function updateDef(tab, key, val) {
-  getDefsTarget(tab)[key] = val;
+function updateStyleDef(key, field, val) {
+  if (!blockDefaults[key]) blockDefaults[key] = {};
+  blockDefaults[key][field] = val;
   saveDefaults();
-  const type = document.getElementById('blockType').value;
-  if (tab === 'paragraph' && type === 'paragraph') {
-    applyDefaults('paragraph');
-  } else if (tab !== 'paragraph' && type === 'heading') {
-    const htEl = document.getElementById('f_ht');
-    if (htEl && htEl.value === tab) applyDefaults('heading', tab);
-  }
 }
 
-function updateDefNum(tab, key, val) {
+function updateStyleDefNum(key, field, val) {
   const n = parseFloat(val);
-  if (!isNaN(n)) updateDef(tab, key, n);
+  if (!isNaN(n)) updateStyleDef(key, field, n);
 }
 
-function updateDefInt(tab, key, val) {
+function updateStyleDefInt(key, field, val) {
   const n = parseInt(val);
-  if (!isNaN(n)) updateDef(tab, key, n);
-}
-
-function showDefsTab(tab) {
-  activeDefsTab = tab;
-  ['paragraph','h1','h2','h3','h4','h5','h6'].forEach(t => {
-    const btn = document.getElementById('dtab-' + t);
-    if (btn) btn.classList.toggle('active', t === tab);
-  });
-  const panel = document.getElementById('dpanel');
-  if (panel) panel.innerHTML = renderDefsPanel(tab, 'dp');
-}
-
-let activeDefsTabImp = 'paragraph';
-function showDefsTabImp(tab) {
-  activeDefsTabImp = tab;
-  ['paragraph','h1','h2','h3','h4','h5','h6'].forEach(t => {
-    const btn = document.getElementById('dtab-imp-' + t);
-    if (btn) btn.classList.toggle('active', t === tab);
-  });
-  const panel = document.getElementById('dpanel-imp');
-  if (panel) panel.innerHTML = renderDefsPanel(tab, 'dpi');
-}
-
-function applyDefaults(type, htLevel) {
-  let d;
-  if (type === 'paragraph') {
-    d = blockDefaults.paragraph;
-  } else if (type === 'heading') {
-    d = blockDefaults.heading[htLevel || 'h1'];
-  } else {
-    return;
-  }
-  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
-  set('c_fs', d.fontSize);
-  set('c_lh', d.lineHeight);
-  set('c_tc', d.textColor);   set('c_tc_t', d.textColor);
-  set('c_bg', d.backgroundColor); set('c_bg_t', d.backgroundColor);
-  set('c_pt', d.paddingTop);  set('c_pr', d.paddingRight);
-  set('c_pb', d.paddingBottom); set('c_pl', d.paddingLeft);
-  set('c_font', d.font);      set('c_fontfb', d.fontFallback);
+  if (!isNaN(n)) updateStyleDef(key, field, n);
 }
 
 // ─── Builder: poll options ────────────────────────────────────────────────────
@@ -2020,7 +2348,7 @@ function tplParagraph() { return `
 
 function tplHeading() { return `
   <div class="form-group"><label>Heading Level</label>
-    <select id="f_ht" onchange="applyDefaults('heading', this.value)"><option value="h1">H1</option><option value="h2">H2</option><option value="h3">H3</option><option value="h4">H4</option><option value="h5">H5</option><option value="h6">H6</option></select></div>
+    <select id="f_ht"><option value="h1">H1</option><option value="h2">H2</option><option value="h3">H3</option><option value="h4">H4</option><option value="h5">H5</option><option value="h6">H6</option></select></div>
   <div class="form-group"><label>Text</label>
     <textarea id="f_text">Start writing...</textarea></div>
   <div class="form-group"><label>Alignment</label>
@@ -2435,15 +2763,6 @@ function onTypeChange() {
     : '';
 
   if (type === 'poll') { pollOpts = ['Option 1', 'Option 2']; renderPollOpts(); }
-
-  if (type === 'paragraph' || type === 'heading') {
-    applyDefaults(type);
-  } else {
-    const fsSizes = { button: 16, evvnt: 24 };
-    const lhVals  = { button: 1 };
-    document.getElementById('c_fs').value = fsSizes[type] || 14;
-    document.getElementById('c_lh').value = lhVals[type] || 1.4;
-  }
 }
 
 // ─── Builder: build helpers ───────────────────────────────────────────────────
@@ -2512,20 +2831,24 @@ function layoutChildren(lt) {
 // ─── Builder: build block JSON ────────────────────────────────────────────────
 function buildBlock() {
   const type = document.getElementById('blockType').value;
+  const effectiveKey = type === 'heading'
+    ? (document.getElementById('f_ht')?.value || 'h1')
+    : type;
+  const d = blockDefaults[effectiveKey] || blockDefaults.paragraph;
 
   const base = {
     type, uniqueId: uid(), blocks: [], blockModel: {},
-    backgroundColor: colorVal('c_bg', '#FFFFFF'), bgImage: '', bgImageFit: 'fill',
-    borderColor: colorVal('c_bc', 'transparent'), borderStyle: v('c_bs', 'solid'),
-    borderThickness: { top: i('c_bt',0), right: i('c_br',0), bottom: i('c_bb',0), left: i('c_bl',0) },
+    backgroundColor: d.backgroundColor, bgImage: '', bgImageFit: 'fill',
+    borderColor: d.borderColor || 'transparent', borderStyle: d.borderStyle || 'solid',
+    borderThickness: { top: d.borderTop || 0, right: d.borderRight || 0, bottom: d.borderBottom || 0, left: d.borderLeft || 0 },
     borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 },
-    columnWidth: 100, defaultFont: v('c_font', 'Arial'), fontFallback: v('c_fontfb', 'Arial'),
-    fontSize: n('c_fs', 14), lineHeight: n('c_lh', 1.4), listLineHeight: null, layoutType: 0,
-    paddingTop: i('c_pt', 10), paddingRight: i('c_pr', 25), paddingBottom: i('c_pb', 10), paddingLeft: i('c_pl', 25),
-    mobilePadding: { top: i('c_pt',10), right: i('c_pr',25), bottom: i('c_pb',10), left: i('c_pl',25) },
+    columnWidth: 100, defaultFont: d.font, fontFallback: d.fontFallback,
+    fontSize: d.fontSize, lineHeight: d.lineHeight, listLineHeight: null, layoutType: 0,
+    paddingTop: d.paddingTop, paddingRight: d.paddingRight, paddingBottom: d.paddingBottom, paddingLeft: d.paddingLeft,
+    mobilePadding: { top: d.paddingTop, right: d.paddingRight, bottom: d.paddingBottom, left: d.paddingLeft },
     useMobilePadding: false, isLocked: false, isLayoutStacked: false,
     extendBgColor: false, tags: [], targetable: false,
-    textColor: colorVal('c_tc', '#020617'),
+    textColor: d.textColor,
     permissions: { allowClone: true, allowDelete: true }
   };
 
@@ -2941,8 +3264,12 @@ async function sendToLetterheadImporter() {
 }
 
 // Init
-showDefsTab('paragraph');
-showDefsTabImp('paragraph');
+const _initStyleType = getAllStyleTypesList().find(t => t.key === activeStylesKey);
+if (_initStyleType) {
+  const inp = document.getElementById('styles-search');
+  if (inp) inp.value = _initStyleType.label;
+}
+renderStylesPanelForCurrentType();
 onTypeChange();
 document.getElementById('force-ai-styles').checked = forceAiStyles;
 

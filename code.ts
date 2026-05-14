@@ -20,6 +20,9 @@ Promise.all([
 figma.clientStorage.getAsync('uc_public_key').then(key => {
   figma.ui.postMessage({ type: 'uc-key-loaded', key: key || '' });
 }).catch(() => {});
+figma.clientStorage.getAsync('lh_block_defaults').then(data => {
+  figma.ui.postMessage({ type: 'block-defaults-loaded', data: data || '' });
+}).catch(() => {});
 
 // ─── Hex: Letterhead → Figma ──────────────────────────────────────────────────
 
@@ -921,7 +924,7 @@ function analyzeSelection(): AnalyzedBlock[] {
 
 // ─── Message handler ──────────────────────────────────────────────────────────
 
-figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode?: string; blocks?: unknown[]; key?: string; baseUrl?: string; ucKey?: string; frameId?: string }) => {
+figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode?: string; blocks?: unknown[]; key?: string; baseUrl?: string; ucKey?: string; frameId?: string; data?: string }) => {
 
   if (msg.type === 'save-api-key') {
     await figma.clientStorage.setAsync('anthropic_api_key', msg.key || '');
@@ -938,6 +941,10 @@ figma.ui.onmessage = async (msg: { type: string; blockData?: unknown; outputMode
 
   if (msg.type === 'save-uc-key') {
     await figma.clientStorage.setAsync('uc_public_key', msg.ucKey || '');
+  }
+
+  if (msg.type === 'save-block-defaults') {
+    await figma.clientStorage.setAsync('lh_block_defaults', msg.data || '');
   }
 
   if (msg.type === 'export-selection') {
