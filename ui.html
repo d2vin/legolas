@@ -105,6 +105,27 @@
     font-size: 12px; color: #374151; font-weight: 400; cursor: pointer;
   }
 
+  /* Feature switches */
+  .feature-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 0; border-bottom: 1px solid #f1f5f9;
+  }
+  .feature-row:last-child { border-bottom: none; }
+  .feature-label { font-size: 12px; color: #374151; }
+  .switch { position: relative; width: 32px; height: 18px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .switch-track {
+    position: absolute; inset: 0; border-radius: 9px;
+    background: #cbd5e1; cursor: pointer; transition: background 0.2s;
+  }
+  .switch-track::after {
+    content: ''; position: absolute; width: 12px; height: 12px;
+    border-radius: 50%; background: #fff; top: 3px; left: 3px;
+    transition: transform 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+  .switch input:checked + .switch-track { background: #6366f1; }
+  .switch input:checked + .switch-track::after { transform: translateX(14px); }
+
   /* Poll options */
   .opt-row { display: flex; gap: 5px; margin-bottom: 5px; align-items: center; }
   .opt-row input { flex: 1; }
@@ -179,7 +200,7 @@
   .hint strong { color: #374151; }
 
   .analyze-row {
-    display: flex; gap: 7px; margin-bottom: 12px;
+    display: flex; gap: 7px; margin-bottom: 8px;
   }
   .btn-ai {
     flex: 1; padding: 9px; border: none; border-radius: 6px;
@@ -198,7 +219,7 @@
   /* API key section */
   .api-key-section {
     background: #fff; border: 1px solid #e2e8f0; border-radius: 6px;
-    margin-bottom: 10px; overflow: hidden;
+    margin-bottom: 8px; overflow: hidden;
   }
   .api-key-hd {
     padding: 7px 10px; font-size: 10px; font-weight: 700;
@@ -301,7 +322,7 @@
   }
   .block-item-hd:hover { background: #f8fafc; }
   .block-item.active > .block-item-hd { background: #eef2ff; }
-  .block-item-actions { display: flex; gap: 4px; flex-shrink: 0; margin-left: auto; }
+  .block-item-actions { display: flex; gap: 4px; flex-shrink: 0; margin-left: auto; align-items: center; }
   .block-item-btn {
     font-size: 9px; padding: 2px 6px; border-radius: 3px; border: 1px solid #e2e8f0;
     background: #f8fafc; color: #475569; cursor: pointer; white-space: nowrap;
@@ -427,126 +448,37 @@
 
 <!-- ─── Tab bar ──────────────────────────────────────────────────────────────── -->
 <div class="tabs">
+  <button class="tab" id="tab-settings" onclick="switchPage('settings')">Settings</button>
   <button class="tab" id="tab-styles" onclick="switchPage('styles')">Styles</button>
   <button class="tab active" id="tab-importer" onclick="switchPage('importer')">Figma → LH</button>
   <button class="tab" id="tab-builder" onclick="switchPage('builder')">Builder</button>
+  <button class="tab" id="tab-send" onclick="switchPage('send')">Send</button>
 </div>
 
-<!-- ─── Page 0: Styles ───────────────────────────────────────────────────────── -->
-<div class="scroll-area" id="page-styles" style="display:none">
-  <h1>Block Style Defaults</h1>
-  <p class="styles-desc">Default styles applied when creating blocks in the builder and when using "Force Block Defaults" in Figma → LH.</p>
+<!-- ─── Page: Settings ───────────────────────────────────────────────────────── -->
+<div class="scroll-area" id="page-settings" style="display:none">
+  <h1>Settings</h1>
 
-  <div class="form-group" style="margin-bottom:4px">
-    <label>Block Type</label>
-    <div class="styles-combobox">
-      <input type="text" id="styles-search" placeholder="Search block type…" autocomplete="off"
-        oninput="filterStylesBlocks(this.value)"
-        onfocus="openStylesDropdown()"
-        onblur="closeStylesDropdown()"
-        onkeydown="stylesKeydown(event)">
-      <div class="styles-dropdown" id="styles-dropdown" style="display:none"></div>
+  <!-- Letterhead settings -->
+  <div class="section">
+    <div class="section-hd" onclick="toggleSection('lh-settings')">
+      Letterhead <span id="lh-settings-icon">▶</span>
     </div>
-  </div>
-  <div id="styles-panel" class="styles-panel-wrap" style="margin-top:8px"></div>
-
-  <button class="btn-ai" id="btn-analyze-style-guide" onclick="runStyleGuideAnalyze()" style="width:100%;margin-top:8px">✦ AI Analyze Style Guide</button>
-  <div id="style-guide-status" style="display:none;margin-top:6px"></div>
-
-  <div style="height:8px"></div>
-</div>
-
-<!-- ─── Page 1: Block Builder ───────────────────────────────────────────────── -->
-<div class="scroll-area" id="page-builder" style="display:none">
-  <h1>Newsletter Block Builder</h1>
-
-  <div class="form-group">
-    <label>Block Type</label>
-    <select id="blockType" onchange="onTypeChange()">
-      <optgroup label="Text">
-        <option value="paragraph">Paragraph</option>
-        <option value="heading">Heading</option>
-        <option value="blockquote">Blockquote</option>
-        <option value="footer">Footer</option>
-      </optgroup>
-      <optgroup label="Media">
-        <option value="image">Image</option>
-        <option value="logo">Logo</option>
-        <option value="youtube">YouTube</option>
-        <option value="audio">Audio</option>
-      </optgroup>
-      <optgroup label="Interactive">
-        <option value="button">Button</option>
-        <option value="poll">Poll</option>
-      </optgroup>
-      <optgroup label="Layout">
-        <option value="layout">Layout (Side-by-Side)</option>
-        <option value="nested-layout-2-column">2-Column Layout</option>
-        <option value="divider">Divider</option>
-      </optgroup>
-      <optgroup label="Content">
-        <option value="dynamic">Dynamic (URL Embed)</option>
-        <option value="curation">Curation</option>
-        <option value="newrss">New RSS</option>
-        <option value="wordpress">WordPress</option>
-        <option value="rss">RSS (Legacy)</option>
-        <option value="news">News</option>
-      </optgroup>
-      <optgroup label="Ads &amp; Promo">
-        <option value="newpromotion">New Promotion</option>
-        <option value="promotion">Promotion (Legacy)</option>
-      </optgroup>
-      <optgroup label="Social">
-        <option value="profile">Profile</option>
-        <option value="share">Share</option>
-      </optgroup>
-      <optgroup label="Integrations">
-        <option value="html">HTML</option>
-        <option value="aiText">AI Text</option>
-        <option value="evvnt">Evvnt Events</option>
-        <option value="revContent">RevContent</option>
-        <option value="iterable">Iterable</option>
-        <option value="googleDocs">Google Docs</option>
-        <option value="view_in_browser">View in Browser</option>
-      </optgroup>
-    </select>
-  </div>
-
-  <div id="specific"></div>
-
-  <!-- Letterhead API section -->
-  <div class="section" style="margin-top:8px">
-    <div class="section-hd" onclick="toggleSection('lh-api')">
-      Send to Letterhead <span id="lh-api-icon">▶</span>
-    </div>
-    <div class="section-bd hidden" id="lh-api-bd">
+    <div class="section-bd hidden" id="lh-settings-bd">
       <div class="form-group">
         <label>API Key</label>
-        <input type="password" id="lh-api-key" placeholder="Bearer token" autocomplete="off">
+        <input type="password" id="lh-api-key-imp" placeholder="Bearer token" autocomplete="off">
       </div>
       <div class="form-group">
         <label>Uploadcare Public Key</label>
-        <input type="password" id="uc-public-key" placeholder="demopublickey" autocomplete="off" onchange="saveUcKeyFromField('uc-public-key')" onpaste="setTimeout(()=>saveUcKeyFromField('uc-public-key'),0)">
+        <input type="password" id="uc-public-key-imp" placeholder="demopublickey" autocomplete="off" onchange="saveUcKeyFromField('uc-public-key-imp')" onpaste="setTimeout(()=>saveUcKeyFromField('uc-public-key-imp'),0)">
       </div>
       <div class="form-group">
         <label>Base URL</label>
-        <input type="url" id="lh-base-url" value="https://qa-devin.api.tryletterhead.dev">
-      </div>
-      <div class="form-group">
-        <label>Letter Title <span style="font-weight:400;text-transform:none">(optional)</span></label>
-        <input type="text" id="lh-letter-title" placeholder="My Newsletter">
+        <input type="url" id="lh-base-url-imp" value="https://qa-devin.api.tryletterhead.dev">
       </div>
     </div>
   </div>
-
-  <div id="generated-blocks-container"></div>
-
-  <div style="height:8px"></div>
-</div>
-
-<!-- ─── Page 2: Figma → Letterhead ──────────────────────────────────────────── -->
-<div class="scroll-area" id="page-importer">
-  <h1>Figma → Letterhead</h1>
 
   <!-- AI settings section -->
   <div class="api-key-section">
@@ -570,48 +502,150 @@
     </div>
   </div>
 
+  <!-- Features section -->
+  <div class="section">
+    <div class="section-hd" onclick="toggleSection('features')">
+      Features <span id="features-icon">▶</span>
+    </div>
+    <div class="section-bd hidden" id="features-bd">
+      <div class="feature-row">
+        <span class="feature-label">Show Styles tab</span>
+        <label class="switch">
+          <input type="checkbox" id="feature-styles-tab" onchange="applyFeatures()">
+          <span class="switch-track"></span>
+        </label>
+      </div>
+      <div class="feature-row">
+        <span class="feature-label">Show Builder tab</span>
+        <label class="switch">
+          <input type="checkbox" id="feature-builder-tab" onchange="applyFeatures()">
+          <span class="switch-track"></span>
+        </label>
+      </div>
+      <div class="feature-row">
+        <span class="feature-label">Show Scan button</span>
+        <label class="switch">
+          <input type="checkbox" id="feature-scan" onchange="applyFeatures()">
+          <span class="switch-track"></span>
+        </label>
+      </div>
+      <div class="feature-row">
+        <span class="feature-label">Show Visual / JSON toggle</span>
+        <label class="switch">
+          <input type="checkbox" id="feature-preview-toggle" onchange="applyFeatures()">
+          <span class="switch-track"></span>
+        </label>
+      </div>
+      <div class="feature-row">
+        <span class="feature-label">Show Create Blocks button</span>
+        <label class="switch">
+          <input type="checkbox" id="feature-create-blocks" onchange="applyFeatures()">
+          <span class="switch-track"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div style="height:8px"></div>
+</div>
+
+<!-- ─── Page 0: Styles ───────────────────────────────────────────────────────── -->
+<div class="scroll-area" id="page-styles" style="display:none">
+  <h1>Block Style Defaults</h1>
+  <div class="form-group">
+    <label>Block Type</label>
+    <div class="styles-combobox">
+      <input type="text" id="styles-search" placeholder="Search block type…" autocomplete="off"
+        oninput="filterStylesBlocks(this.value)"
+        onfocus="openStylesDropdown()"
+        onblur="closeStylesDropdown()"
+        onkeydown="stylesKeydown(event)">
+      <div class="styles-dropdown" id="styles-dropdown" style="display:none"></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-hd" onclick="toggleSection('styles-settings')">
+      Settings <span id="styles-settings-icon">▶</span>
+    </div>
+    <div class="section-bd hidden" id="styles-settings-bd">
+      <div id="styles-panel" class="styles-panel-wrap"></div>
+    </div>
+  </div>
+
+  <div id="style-guide-status" style="display:none;margin-top:8px;margin-bottom:8px"></div>
+  <button class="btn-ai" id="btn-analyze-style-guide" onclick="runStyleGuideAnalyze()" style="width:100%">✦ AI Analyze Style Guide</button>
+
+  <div style="height:8px"></div>
+</div>
+
+<!-- ─── Page 1: Block Builder ───────────────────────────────────────────────── -->
+<div class="scroll-area" id="page-builder" style="display:none">
+  <h1>Newsletter Block Builder</h1>
+
+  <div class="form-group">
+    <label>Block Type</label>
+    <div class="styles-combobox">
+      <input type="text" id="builder-search" placeholder="Search block type…" autocomplete="off"
+        oninput="filterBuilderBlocks(this.value)"
+        onfocus="openBuilderDropdown()"
+        onblur="closeBuilderDropdown()"
+        onkeydown="builderKeydown(event)">
+      <div class="styles-dropdown" id="builder-dropdown" style="display:none"></div>
+    </div>
+  </div>
+
+  <div id="specific"></div>
+
+  <div id="generated-blocks-container"></div>
+
+  <div style="height:8px"></div>
+</div>
+
+<!-- ─── Page 2: Figma → Letterhead ──────────────────────────────────────────── -->
+<div class="scroll-area" id="page-importer">
+  <h1>Figma → Letterhead</h1>
+
   <!-- No key warning (shown when AI Analyze clicked without a key) -->
   <div class="no-key-warning" id="no-key-warning">
     Add your API key above to use AI Analyze.
   </div>
 
-  <div class="chk" style="margin-bottom:10px">
-    <input type="checkbox" id="force-ai-styles" onchange="setForceAiStyles(this.checked)">
-    <label for="force-ai-styles">Force Block Defaults on AI styles</label>
-  </div>
-
-  <!-- Letterhead API section (importer) -->
-  <div class="section" id="lh-api-imp-wrap" style="margin-top:8px">
-    <div class="section-hd" onclick="toggleSection('lh-api-imp')">
-      Send to Letterhead <span id="lh-api-imp-icon">▶</span>
+  <!-- Block Style Defaults (mirrored from Styles tab) -->
+  <div class="form-group">
+    <label>Block Type</label>
+    <div class="styles-combobox">
+      <input type="text" id="imp-styles-search" placeholder="Search block type…" autocomplete="off"
+        oninput="filterImpStylesBlocks(this.value)"
+        onfocus="openImpStylesDropdown()"
+        onblur="closeImpStylesDropdown()"
+        onkeydown="impStylesKeydown(event)">
+      <div class="styles-dropdown" id="imp-styles-dropdown" style="display:none"></div>
     </div>
-    <div class="section-bd hidden" id="lh-api-imp-bd">
-      <div class="form-group">
-        <label>API Key</label>
-        <input type="password" id="lh-api-key-imp" placeholder="Bearer token" autocomplete="off">
-      </div>
-      <div class="form-group">
-        <label>Uploadcare Public Key</label>
-        <input type="password" id="uc-public-key-imp" placeholder="demopublickey" autocomplete="off" onchange="saveUcKeyFromField('uc-public-key-imp')" onpaste="setTimeout(()=>saveUcKeyFromField('uc-public-key-imp'),0)">
-      </div>
-      <div class="form-group">
-        <label>Base URL</label>
-        <input type="url" id="lh-base-url-imp" value="https://qa-devin.api.tryletterhead.dev">
-      </div>
-      <div class="form-group">
-        <label>Letter Title <span style="font-weight:400;text-transform:none">(optional)</span></label>
-        <input type="text" id="lh-letter-title-imp" placeholder="My Newsletter">
-      </div>
+  </div>
+  <div class="section">
+    <div class="section-hd" onclick="toggleSection('imp-styles-settings')">
+      Settings <span id="imp-styles-settings-icon">▶</span>
+    </div>
+    <div class="section-bd hidden" id="imp-styles-settings-bd">
+      <div id="imp-styles-panel" class="styles-panel-wrap"></div>
     </div>
   </div>
 
-  <!-- Analyze buttons -->
-  <div class="analyze-row">
-    <button class="btn-ai" id="btn-ai-analyze" onclick="runAiAnalyze()">✦ AI Analyze</button>
-    <button class="btn-quick" onclick="parent.postMessage({pluginMessage:{type:'scan-image-fills'}},'*')" title="Log IMAGE fills to console">⬡ Scan</button>
-  </div>
+  <div id="imp-style-guide-status" style="display:none;margin-top:8px;margin-bottom:8px"></div>
 
   <div id="importer-results"></div>
+
+  <div style="height:8px"></div>
+</div>
+
+<!-- ─── Page: Send ───────────────────────────────────────────────────────────── -->
+<div class="scroll-area" id="page-send" style="display:none">
+  <h1>Send Letter</h1>
+
+  <div class="form-group">
+    <label>Letter Title <span style="font-weight:400;text-transform:none">(optional)</span></label>
+    <input type="text" id="lh-letter-title-imp" placeholder="My Newsletter" style="background-image:none;padding-right:8px">
+  </div>
 
   <div style="height:8px"></div>
 </div>
@@ -634,6 +668,11 @@
 
 <!-- ─── Actions: Importer ────────────────────────────────────────────────────── -->
 <div class="actions" id="actions-importer" style="flex-direction:column;gap:6px">
+  <div style="display:flex;gap:8px;width:100%">
+    <button class="btn-ai" id="btn-ai-analyze" onclick="runAiAnalyze()" style="flex:1">✦ AI Analyze</button>
+    <button class="btn-ai" id="imp-btn-analyze-style-guide" onclick="runStyleGuideAnalyze()" style="flex:1">✦ Style Guide</button>
+    <button class="btn-quick" onclick="parent.postMessage({pluginMessage:{type:'scan-image-fills'}},'*')" title="Log IMAGE fills to console">⬡ Scan</button>
+  </div>
   <div class="toggle-row" style="margin-bottom:0">
     <button class="toggle-btn active" id="ai-mode-visual" onclick="setAiMode('visual')">◈ Visual Preview</button>
     <button class="toggle-btn" id="ai-mode-json" onclick="setAiMode('json')">{ } JSON</button>
@@ -648,14 +687,18 @@
 <script>
 // ─── Page switching ───────────────────────────────────────────────────────────
 function switchPage(page) {
+  document.getElementById('page-settings').style.display = page === 'settings' ? '' : 'none';
   document.getElementById('page-styles').style.display = page === 'styles' ? '' : 'none';
   document.getElementById('page-builder').style.display = page === 'builder' ? '' : 'none';
   document.getElementById('page-importer').style.display = page === 'importer' ? '' : 'none';
+  document.getElementById('page-send').style.display = page === 'send' ? '' : 'none';
   document.getElementById('actions-builder').style.display = page === 'builder' ? '' : 'none';
-  document.getElementById('actions-importer').style.display = page === 'importer' ? '' : 'none';
+  document.getElementById('actions-importer').style.display = page !== 'builder' ? '' : 'none';
+  document.getElementById('tab-settings').classList.toggle('active', page === 'settings');
   document.getElementById('tab-styles').classList.toggle('active', page === 'styles');
   document.getElementById('tab-builder').classList.toggle('active', page === 'builder');
   document.getElementById('tab-importer').classList.toggle('active', page === 'importer');
+  document.getElementById('tab-send').classList.toggle('active', page === 'send');
 }
 
 // ─── Plugin ↔ UI messages ──────────────────────────────────────────────────────
@@ -742,11 +785,9 @@ function onLhKeyLoaded(key, baseUrl) {
   savedLhApiKey = key;
   savedLhBaseUrl = baseUrl;
   if (key) {
-    document.getElementById('lh-api-key').placeholder = '(saved — paste to update)';
     document.getElementById('lh-api-key-imp').placeholder = '(saved — paste to update)';
   }
   if (baseUrl) {
-    document.getElementById('lh-base-url').value = baseUrl;
     document.getElementById('lh-base-url-imp').value = baseUrl;
   }
 }
@@ -754,10 +795,8 @@ function onLhKeyLoaded(key, baseUrl) {
 function onUcKeyLoaded(key) {
   savedUcPublicKey = key;
   if (key) {
-    ['uc-public-key', 'uc-public-key-imp'].forEach(id => {
-      const input = document.getElementById(id);
-      if (input && !input.value) input.value = key;
-    });
+    const input = document.getElementById('uc-public-key-imp');
+    if (input && !input.value) input.value = key;
   }
 }
 
@@ -785,10 +824,8 @@ function saveUcKeyFromField(sourceId) {
   if (!key || key === savedUcPublicKey) return;
   savedUcPublicKey = key;
   parent.postMessage({ pluginMessage: { type: 'save-uc-key', ucKey: key } }, '*');
-  ['uc-public-key', 'uc-public-key-imp'].forEach(id => {
-    const input = document.getElementById(id);
-    if (input && id !== sourceId) input.value = key;
-  });
+  const syncInput = document.getElementById('uc-public-key-imp');
+  if (syncInput && 'uc-public-key-imp' !== sourceId) syncInput.value = key;
 }
 
 function detectMime(arr) {
@@ -918,7 +955,6 @@ const BLOCK_BADGE_COLORS = {
 
 let detectedBlocks = [];
 let pendingAnalysisType = 'blocks';
-let forceAiStyles = (() => { try { return localStorage.getItem('lh_force_ai_styles') === 'true'; } catch(e) { return false; } })();
 
 // ─── AI analyze ────────────────────────────────────────────────────────────────
 function runAiAnalyze() {
@@ -933,8 +969,9 @@ function runAiAnalyze() {
   const lhKey = (document.getElementById('lh-api-key-imp').value || '').trim() || savedLhApiKey;
   if (!lhKey) {
     lhShowToast('Enter a Letterhead API key before analyzing.', true);
-    const bd = document.getElementById('lh-api-imp-bd');
-    if (bd.classList.contains('hidden')) toggleSection('lh-api-imp');
+    switchPage('settings');
+    const bd = document.getElementById('lh-settings-bd');
+    if (bd.classList.contains('hidden')) toggleSection('lh-settings');
     return;
   }
   showLoading('Exporting layers from Figma…');
@@ -1083,24 +1120,33 @@ RULES:
 OUTPUT: Raw JSON only. No markdown fences, no prose, no comments. Must pass JSON.parse() directly.`;
 
 function setStylesPanelLoading(label) {
-  const wrap = document.getElementById('styles-panel');
-  if (!wrap) return;
-  wrap.classList.add('loading');
-  let overlay = wrap.querySelector('.styles-panel-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.className = 'styles-panel-overlay';
-    wrap.appendChild(overlay);
-  }
-  overlay.innerHTML = `<span class="spinner"></span><span class="styles-panel-overlay-label">${esc(label)}</span>`;
+  ['styles-panel', 'imp-styles-panel'].forEach(id => {
+    const wrap = document.getElementById(id);
+    if (!wrap) return;
+    wrap.classList.add('loading');
+    let overlay = wrap.querySelector('.styles-panel-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.className = 'styles-panel-overlay';
+      wrap.appendChild(overlay);
+    }
+    overlay.innerHTML = `<span class="spinner"></span><span class="styles-panel-overlay-label">${esc(label)}</span>`;
+  });
+  // Open Settings sections so the spinner is visible
+  ['styles-settings', 'imp-styles-settings'].forEach(id => {
+    const bd = document.getElementById(id + '-bd');
+    if (bd && bd.classList.contains('hidden')) toggleSection(id);
+  });
 }
 
 function clearStylesPanelLoading() {
-  const wrap = document.getElementById('styles-panel');
-  if (!wrap) return;
-  wrap.classList.remove('loading');
-  const overlay = wrap.querySelector('.styles-panel-overlay');
-  if (overlay) overlay.remove();
+  ['styles-panel', 'imp-styles-panel'].forEach(id => {
+    const wrap = document.getElementById(id);
+    if (!wrap) return;
+    wrap.classList.remove('loading');
+    const overlay = wrap.querySelector('.styles-panel-overlay');
+    if (overlay) overlay.remove();
+  });
 }
 
 function runStyleGuideAnalyze() {
@@ -1112,29 +1158,34 @@ function runStyleGuideAnalyze() {
     document.getElementById('api-key-icon').textContent = '▼';
     return;
   }
-  const status = document.getElementById('style-guide-status');
-  status.style.display = 'block';
-  status.innerHTML = '<div class="loading-state"><span class="spinner"></span>Exporting selection from Figma…</div>';
-  document.getElementById('btn-analyze-style-guide').disabled = true;
+  ['style-guide-status', 'imp-style-guide-status'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.style.display = 'block'; el.innerHTML = '<div class="loading-state"><span class="spinner"></span>Exporting selection from Figma…</div>'; }
+  });
+  ['btn-analyze-style-guide', 'imp-btn-analyze-style-guide'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.disabled = true;
+  });
   setStylesPanelLoading('Exporting from Figma…');
   pendingAnalysisType = 'style-guide';
   parent.postMessage({ pluginMessage: { type: 'export-selection' } }, '*');
 }
 
 async function handleStyleGuideExport(items) {
-  const status = document.getElementById('style-guide-status');
-  const btn = document.getElementById('btn-analyze-style-guide');
+  const statusIds = ['style-guide-status', 'imp-style-guide-status'];
+  const btnIds = ['btn-analyze-style-guide', 'imp-btn-analyze-style-guide'];
+  const setStatus = html => statusIds.forEach(id => { const el = document.getElementById(id); if (el) { el.style.display = 'block'; el.innerHTML = html; } });
+  const enableBtns = () => btnIds.forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
   pendingAnalysisType = 'blocks';
 
   if (!items || items.length === 0) {
     clearStylesPanelLoading();
-    status.innerHTML = '<div class="error-state"><strong>No selection</strong>Select a style guide frame in Figma and try again.</div>';
-    btn.disabled = false;
+    setStatus('<div class="error-state"><strong>No selection</strong>Select a style guide frame in Figma and try again.</div>');
+    enableBtns();
     return;
   }
 
   const providerLabel = activeProvider === 'openai' ? 'GPT-4o' : 'Claude';
-  status.innerHTML = `<div class="loading-state"><span class="spinner"></span>Asking ${esc(providerLabel)} to extract styles…</div>`;
+  setStatus(`<div class="loading-state"><span class="spinner"></span>Asking ${esc(providerLabel)} to extract styles…</div>`);
   setStylesPanelLoading(`Asking ${providerLabel}…`);
 
   try {
@@ -1154,13 +1205,13 @@ async function handleStyleGuideExport(items) {
     applyStyleGuideToDefaults(styles);
     clearStylesPanelLoading();
 
-    status.innerHTML = '<div style="padding:8px 10px;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:5px;font-size:11px;font-weight:600;">✓ Block Defaults updated from style guide</div>';
-    setTimeout(() => { status.style.display = 'none'; }, 3500);
+    setStatus('<div style="padding:8px 10px;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:5px;font-size:11px;font-weight:600;">✓ Block Defaults updated from style guide</div>');
+    setTimeout(() => statusIds.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; }), 3500);
   } catch (err) {
     clearStylesPanelLoading();
-    status.innerHTML = `<div class="error-state"><strong>Style guide analysis failed</strong>${esc(String(err.message || err))}</div>`;
+    setStatus(`<div class="error-state"><strong>Style guide analysis failed</strong>${esc(String(err.message || err))}</div>`);
   }
-  btn.disabled = false;
+  enableBtns();
 }
 
 function applyStyleGuideToDefaults(styles) {
@@ -1667,7 +1718,10 @@ function renderAnalyzedBlocks(blocks, source) {
   container.innerHTML = `
     <div class="block-list-header">
       Detected Blocks
-      <span class="block-count">${blocks.length}</span>
+      <span style="display:flex;align-items:center;gap:6px">
+        <span class="block-count">${blocks.length}</span>
+        <button class="block-item-btn danger" onclick="clearDetectedBlocks()" title="Clear all" style="font-size:9px;padding:1px 5px">Clear</button>
+      </span>
     </div>
     <div class="block-list">${rows}</div>`;
 
@@ -1678,8 +1732,6 @@ function renderAnalyzedBlocks(blocks, source) {
   sendBtn.disabled = false;
   sendBtn.textContent = `↑ Send Letter`;
 
-  const bd = document.getElementById('lh-api-imp-bd');
-  if (bd.classList.contains('hidden')) toggleSection('lh-api-imp');
 }
 
 function getPreview(block) {
@@ -1843,10 +1895,6 @@ function uint8ToBase64(bytes) {
 }
 
 
-function setForceAiStyles(val) {
-  forceAiStyles = val;
-  try { localStorage.setItem('lh_force_ai_styles', String(val)); } catch(e) {}
-}
 
 function applyBlockDefaults(block) {
   const key = block.type === 'heading'
@@ -1875,7 +1923,7 @@ function applyBlockDefaults(block) {
 
 function generateBlocks() {
   if (!detectedBlocks.length) return;
-  const blocks = detectedBlocks.map(d => forceAiStyles ? applyBlockDefaults(d.block) : d.block);
+  const blocks = detectedBlocks.map(d => applyBlockDefaults(d.block));
   parent.postMessage({
     pluginMessage: { type: 'render-blocks', blocks, outputMode: aiOutputMode }
   }, '*');
@@ -1931,6 +1979,13 @@ function removeGeneratedBlock(idx) {
   generatedBlocks.splice(idx, 1);
   generatedBlocksOpen.splice(idx, 1);
   renderGeneratedBlocksList();
+}
+
+function clearDetectedBlocks() {
+  detectedBlocks = [];
+  document.getElementById('importer-results').innerHTML = '';
+  document.getElementById('btn-generate').disabled = true;
+  document.getElementById('btn-send-lh-imp').disabled = true;
 }
 
 function clearGeneratedBlocks() {
@@ -2151,6 +2206,82 @@ let stylesDropdownOpen = false;
 let stylesHighlightedIdx = -1;
 let stylesFilteredOptions = getAllStyleTypesList();
 
+let impStylesDropdownOpen = false;
+let impStylesHighlightedIdx = -1;
+
+function renderImpStylesDropdown(groups) {
+  const dd = document.getElementById('imp-styles-dropdown');
+  if (!dd) return;
+  dd.innerHTML = groups.map(g => `
+    <div class="styles-group">${g.group}</div>
+    ${g.types.map(t => `<div class="styles-option${t.key === activeStylesKey ? ' active' : ''}" onmousedown="selectStylesBlock('${t.key}','${esc(t.label)}')">${esc(t.label)}</div>`).join('')}
+  `).join('');
+}
+
+function openImpStylesDropdown() {
+  const dd = document.getElementById('imp-styles-dropdown');
+  if (!dd) return;
+  dd.style.display = 'block';
+  impStylesDropdownOpen = true;
+  const inp = document.getElementById('imp-styles-search');
+  if (inp) inp.value = '';
+  renderImpStylesDropdown(ALL_STYLE_TYPES);
+  impStylesHighlightedIdx = -1;
+}
+
+function closeImpStylesDropdown() {
+  setTimeout(() => {
+    const dd = document.getElementById('imp-styles-dropdown');
+    if (dd) dd.style.display = 'none';
+    impStylesDropdownOpen = false;
+    const inp = document.getElementById('imp-styles-search');
+    if (inp) {
+      const found = getAllStyleTypesList().find(t => t.key === activeStylesKey);
+      if (found) inp.value = found.label;
+    }
+  }, 150);
+}
+
+function filterImpStylesBlocks(query) {
+  openImpStylesDropdown();
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    renderImpStylesDropdown(ALL_STYLE_TYPES);
+  } else {
+    const groups = ALL_STYLE_TYPES.map(g => ({
+      group: g.group,
+      types: g.types.filter(t => t.label.toLowerCase().includes(q))
+    })).filter(g => g.types.length > 0);
+    renderImpStylesDropdown(groups);
+  }
+  impStylesHighlightedIdx = -1;
+}
+
+function impStylesKeydown(e) {
+  if (!impStylesDropdownOpen) {
+    if (e.key === 'ArrowDown' || e.key === 'Enter') openImpStylesDropdown();
+    return;
+  }
+  const opts = document.querySelectorAll('#imp-styles-dropdown .styles-option');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    impStylesHighlightedIdx = Math.min(impStylesHighlightedIdx + 1, opts.length - 1);
+    opts.forEach((el, i) => el.classList.toggle('highlighted', i === impStylesHighlightedIdx));
+    opts[impStylesHighlightedIdx]?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    impStylesHighlightedIdx = Math.max(impStylesHighlightedIdx - 1, 0);
+    opts.forEach((el, i) => el.classList.toggle('highlighted', i === impStylesHighlightedIdx));
+    opts[impStylesHighlightedIdx]?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    if (impStylesHighlightedIdx >= 0 && opts[impStylesHighlightedIdx]) {
+      opts[impStylesHighlightedIdx].dispatchEvent(new MouseEvent('mousedown'));
+    }
+  } else if (e.key === 'Escape') {
+    closeImpStylesDropdown();
+  }
+}
+
 function filterStylesBlocks(query) {
   openStylesDropdown();
   const q = query.trim().toLowerCase();
@@ -2182,11 +2313,10 @@ function openStylesDropdown() {
   if (!dd) return;
   dd.style.display = 'block';
   stylesDropdownOpen = true;
-  const q = (document.getElementById('styles-search')?.value || '').trim();
-  if (!q) {
-    renderStylesDropdown(ALL_STYLE_TYPES);
-    stylesFilteredOptions = getAllStyleTypesList();
-  }
+  const inp = document.getElementById('styles-search');
+  if (inp) inp.value = '';
+  renderStylesDropdown(ALL_STYLE_TYPES);
+  stylesFilteredOptions = getAllStyleTypesList();
 }
 
 function closeStylesDropdown() {
@@ -2204,11 +2334,16 @@ function closeStylesDropdown() {
 
 function selectStylesBlock(key, label) {
   activeStylesKey = key;
-  const inp = document.getElementById('styles-search');
-  if (inp) inp.value = label;
-  const dd = document.getElementById('styles-dropdown');
-  if (dd) dd.style.display = 'none';
+  ['styles-search', 'imp-styles-search'].forEach(id => {
+    const inp = document.getElementById(id);
+    if (inp) inp.value = label;
+  });
+  ['styles-dropdown', 'imp-styles-dropdown'].forEach(id => {
+    const dd = document.getElementById(id);
+    if (dd) dd.style.display = 'none';
+  });
   stylesDropdownOpen = false;
+  impStylesDropdownOpen = false;
   renderStylesPanelForCurrentType();
 }
 
@@ -2240,13 +2375,14 @@ function stylesKeydown(e) {
 
 function renderStylesPanelForCurrentType() {
   const panel = document.getElementById('styles-panel');
-  if (!panel) return;
-  panel.innerHTML = renderStylesPanel(activeStylesKey);
+  if (panel) panel.innerHTML = renderStylesPanel(activeStylesKey, 'sp');
+  const impPanel = document.getElementById('imp-styles-panel');
+  if (impPanel) impPanel.innerHTML = renderStylesPanel(activeStylesKey, 'ip');
 }
 
-function renderStylesPanel(key) {
+function renderStylesPanel(key, pfx = 'sp') {
   const d = blockDefaults[key] || blockDefaults.paragraph;
-  const p = 'sp_' + key.replace(/[^a-zA-Z0-9]/g, '_');
+  const p = pfx + '_' + key.replace(/[^a-zA-Z0-9]/g, '_');
   const bc = d.borderColor === 'transparent' ? '#cccccc' : d.borderColor;
   return `
     <div class="section">
@@ -2736,6 +2872,98 @@ const TEMPLATES = {
   audio: tplAudio, layout: tplLayout, 'nested-layout-2-column': tpl2Col, footer: tplFooter,
 };
 
+// ─── Builder: block type combobox ────────────────────────────────────────────
+let activeBuilderKey = 'paragraph';
+let builderDropdownOpen = false;
+let builderHighlightedIdx = -1;
+let builderFilteredOptions = [];
+
+function renderBuilderDropdown(groups) {
+  const dd = document.getElementById('builder-dropdown');
+  if (!dd) return;
+  dd.innerHTML = groups.map(g => `
+    <div class="styles-group">${g.group}</div>
+    ${g.types.map(t => `<div class="styles-option${t.key === activeBuilderKey ? ' active' : ''}" onmousedown="selectBuilderBlock('${t.key}','${esc(t.label)}')">${esc(t.label)}</div>`).join('')}
+  `).join('');
+}
+
+function openBuilderDropdown() {
+  const dd = document.getElementById('builder-dropdown');
+  if (!dd) return;
+  dd.style.display = 'block';
+  builderDropdownOpen = true;
+  const inp = document.getElementById('builder-search');
+  if (inp) inp.value = '';
+  renderBuilderDropdown(ALL_STYLE_TYPES);
+  builderFilteredOptions = getAllStyleTypesList();
+  builderHighlightedIdx = -1;
+}
+
+function closeBuilderDropdown() {
+  setTimeout(() => {
+    const dd = document.getElementById('builder-dropdown');
+    if (dd) dd.style.display = 'none';
+    builderDropdownOpen = false;
+    const inp = document.getElementById('builder-search');
+    if (inp) {
+      const found = getAllStyleTypesList().find(t => t.key === activeBuilderKey);
+      if (found) inp.value = found.label;
+    }
+  }, 150);
+}
+
+function filterBuilderBlocks(query) {
+  openBuilderDropdown();
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    renderBuilderDropdown(ALL_STYLE_TYPES);
+    builderFilteredOptions = getAllStyleTypesList();
+  } else {
+    builderFilteredOptions = getAllStyleTypesList().filter(t => t.label.toLowerCase().includes(q));
+    const groups = ALL_STYLE_TYPES.map(g => ({
+      group: g.group,
+      types: g.types.filter(t => t.label.toLowerCase().includes(q))
+    })).filter(g => g.types.length > 0);
+    renderBuilderDropdown(groups);
+  }
+  builderHighlightedIdx = -1;
+}
+
+function selectBuilderBlock(key, label) {
+  activeBuilderKey = key;
+  const inp = document.getElementById('builder-search');
+  if (inp) inp.value = label;
+  const dd = document.getElementById('builder-dropdown');
+  if (dd) dd.style.display = 'none';
+  builderDropdownOpen = false;
+  onTypeChange();
+}
+
+function builderKeydown(e) {
+  if (!builderDropdownOpen) {
+    if (e.key === 'ArrowDown' || e.key === 'Enter') openBuilderDropdown();
+    return;
+  }
+  const opts = document.querySelectorAll('#builder-dropdown .styles-option');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    builderHighlightedIdx = Math.min(builderHighlightedIdx + 1, opts.length - 1);
+    opts.forEach((o, i) => o.classList.toggle('highlighted', i === builderHighlightedIdx));
+    opts[builderHighlightedIdx]?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    builderHighlightedIdx = Math.max(builderHighlightedIdx - 1, 0);
+    opts.forEach((o, i) => o.classList.toggle('highlighted', i === builderHighlightedIdx));
+    opts[builderHighlightedIdx]?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    if (builderHighlightedIdx >= 0 && opts[builderHighlightedIdx]) {
+      opts[builderHighlightedIdx].dispatchEvent(new MouseEvent('mousedown'));
+    }
+  } else if (e.key === 'Escape') {
+    closeBuilderDropdown();
+  }
+}
+
 const TYPE_LABELS = {
   paragraph: 'Paragraph', heading: 'Heading', blockquote: 'Blockquote',
   button: 'Button', image: 'Image', logo: 'Logo', divider: 'Divider',
@@ -2750,7 +2978,7 @@ const TYPE_LABELS = {
 };
 
 function onTypeChange() {
-  const type = document.getElementById('blockType').value;
+  const type = activeBuilderKey;
   const container = document.getElementById('specific');
   const tpl = TEMPLATES[type];
   const label = TYPE_LABELS[type] || type;
@@ -2830,7 +3058,7 @@ function layoutChildren(lt) {
 
 // ─── Builder: build block JSON ────────────────────────────────────────────────
 function buildBlock() {
-  const type = document.getElementById('blockType').value;
+  const type = activeBuilderKey;
   const effectiveKey = type === 'heading'
     ? (document.getElementById('f_ht')?.value || 'h1')
     : type;
@@ -3134,16 +3362,17 @@ function lhShowToast(msg, isErr) {
 }
 
 async function sendToLetterhead() {
-  const apiKey = (document.getElementById('lh-api-key').value || '').trim()
+  const apiKey = (document.getElementById('lh-api-key-imp').value || '').trim()
     || savedLhApiKey;
-  const baseUrl = (document.getElementById('lh-base-url').value || '').trim()
+  const baseUrl = (document.getElementById('lh-base-url-imp').value || '').trim()
     || savedLhBaseUrl || 'https://qa-devin.api.tryletterhead.dev';
-  const title = (document.getElementById('lh-letter-title').value || '').trim();
+  const title = (document.getElementById('lh-letter-title-imp').value || '').trim();
 
   if (!apiKey) {
-    // Open the section so the user can see the API key field
-    const bd = document.getElementById('lh-api-bd');
-    if (bd.classList.contains('hidden')) toggleSection('lh-api');
+    switchPage('send');
+    switchPage('settings');
+    const bd = document.getElementById('lh-settings-bd');
+    if (bd.classList.contains('hidden')) toggleSection('lh-settings');
     lhShowToast('Enter a Letterhead API key first.', true);
     return;
   }
@@ -3152,7 +3381,7 @@ async function sendToLetterhead() {
   savedLhApiKey = apiKey;
   savedLhBaseUrl = baseUrl;
   parent.postMessage({ pluginMessage: { type: 'save-lh-key', key: apiKey, baseUrl } }, '*');
-  const ucKeyBuilder = (document.getElementById('uc-public-key').value || '').trim();
+  const ucKeyBuilder = (document.getElementById('uc-public-key-imp').value || '').trim();
   if (ucKeyBuilder) { savedUcPublicKey = ucKeyBuilder; parent.postMessage({ pluginMessage: { type: 'save-uc-key', ucKey: ucKeyBuilder } }, '*'); }
 
   const blocksArray = generatedBlocks.length
@@ -3210,8 +3439,9 @@ async function sendToLetterheadImporter() {
   const title = (document.getElementById('lh-letter-title-imp').value || '').trim();
 
   if (!apiKey) {
-    const bd = document.getElementById('lh-api-imp-bd');
-    if (bd.classList.contains('hidden')) toggleSection('lh-api-imp');
+    switchPage('settings');
+    const bd = document.getElementById('lh-settings-bd');
+    if (bd.classList.contains('hidden')) toggleSection('lh-settings');
     lhShowToast('Enter a Letterhead API key first.', true);
     return;
   }
@@ -3220,7 +3450,7 @@ async function sendToLetterheadImporter() {
   savedLhBaseUrl = baseUrl;
   parent.postMessage({ pluginMessage: { type: 'save-lh-key', key: apiKey, baseUrl } }, '*');
 
-  const blocksArray = detectedBlocks.map(d => forceAiStyles ? applyBlockDefaults(d.block) : d.block);
+  const blocksArray = detectedBlocks.map(d => applyBlockDefaults(d.block));
   const blocksString = typeof blocksArray === 'string' ? blocksArray : JSON.stringify(blocksArray);
 
   if (blocksString === '[]') {
@@ -3263,20 +3493,70 @@ async function sendToLetterheadImporter() {
   }
 }
 
+// ─── Features ────────────────────────────────────────────────────────────────
+const features = (() => {
+  try { return JSON.parse(localStorage.getItem('lh_features') || '{}'); } catch(e) { return {}; }
+})();
+
+function applyFeatures() {
+  features.showScan = document.getElementById('feature-scan').checked;
+  features.showStylesTab = document.getElementById('feature-styles-tab').checked;
+  features.showBuilderTab = document.getElementById('feature-builder-tab').checked;
+  features.showPreviewToggle = document.getElementById('feature-preview-toggle').checked;
+  features.showCreateBlocks = document.getElementById('feature-create-blocks').checked;
+  try { localStorage.setItem('lh_features', JSON.stringify(features)); } catch(e) {}
+
+  const scanBtn = document.querySelector('.btn-quick');
+  if (scanBtn) scanBtn.style.display = features.showScan ? '' : 'none';
+
+  const stylesTab = document.getElementById('tab-styles');
+  if (stylesTab) stylesTab.style.display = features.showStylesTab ? '' : 'none';
+
+  const builderTab = document.getElementById('tab-builder');
+  if (builderTab) builderTab.style.display = features.showBuilderTab ? '' : 'none';
+
+  const previewToggles = document.querySelectorAll('.toggle-row');
+  previewToggles.forEach(el => el.style.display = features.showPreviewToggle ? '' : 'none');
+
+  const createBlocksBtn = document.getElementById('btn-generate');
+  if (createBlocksBtn) createBlocksBtn.style.display = features.showCreateBlocks ? '' : 'none';
+
+  // If current tab is being hidden, switch to importer
+  const currentActive = document.querySelector('.tab.active');
+  if (currentActive && currentActive.style.display === 'none') {
+    switchPage('importer');
+  }
+}
+
 // Init
 const _initStyleType = getAllStyleTypesList().find(t => t.key === activeStylesKey);
 if (_initStyleType) {
-  const inp = document.getElementById('styles-search');
-  if (inp) inp.value = _initStyleType.label;
+  ['styles-search', 'imp-styles-search'].forEach(id => {
+    const inp = document.getElementById(id);
+    if (inp) inp.value = _initStyleType.label;
+  });
 }
 renderStylesPanelForCurrentType();
+
+const _initBuilderType = getAllStyleTypesList().find(t => t.key === activeBuilderKey);
+if (_initBuilderType) {
+  const inp = document.getElementById('builder-search');
+  if (inp) inp.value = _initBuilderType.label;
+}
 onTypeChange();
-document.getElementById('force-ai-styles').checked = forceAiStyles;
+
+// Apply persisted feature flags
+document.getElementById('feature-scan').checked = !!features.showScan;
+document.getElementById('feature-styles-tab').checked = !!features.showStylesTab;
+document.getElementById('feature-builder-tab').checked = !!features.showBuilderTab;
+document.getElementById('feature-preview-toggle').checked = !!features.showPreviewToggle;
+document.getElementById('feature-create-blocks').checked = !!features.showCreateBlocks;
+applyFeatures();
 
 // Autosave: watch all builder form inputs for changes
 (function() {
   const pg = document.getElementById('page-builder');
-  const ignoredIds = new Set(['blockType']);
+  const ignoredIds = new Set(['builder-search']);
   function onFormChange(e) {
     if (ignoredIds.has(e.target.id)) return;
     scheduleAutoSave();
