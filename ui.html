@@ -1672,11 +1672,13 @@ async function callOpenAiVision(items, apiKey) {
 
 // ─── Shared render + generate ──────────────────────────────────────────────────
 function renderAnalyzedBlocks(blocks, source) {
-  detectedBlocks = blocks;
+  if (blocks.length) {
+    detectedBlocks = detectedBlocks.concat(blocks);
+  }
   const container = document.getElementById('importer-results');
   const btn = document.getElementById('btn-generate');
 
-  if (!blocks.length) {
+  if (!detectedBlocks.length) {
     container.innerHTML = `
       <div class="empty-state">
         <span class="icon">◇</span>
@@ -1688,7 +1690,7 @@ function renderAnalyzedBlocks(blocks, source) {
   }
 
   const isAi = source === 'ai';
-  const rows = blocks.map((item, i) => {
+  const rows = detectedBlocks.map((item, i) => {
     const type = item.blockType || (item.block && item.block.type) || 'paragraph';
     const color = BLOCK_BADGE_COLORS[type] || '#6B7280';
     const preview = getPreview(item.block);
@@ -1711,14 +1713,14 @@ function renderAnalyzedBlocks(blocks, source) {
     <div class="block-list-header">
       Detected Blocks
       <span style="display:flex;align-items:center;gap:6px">
-        <span class="block-count">${blocks.length}</span>
+        <span class="block-count">${detectedBlocks.length}</span>
         <button class="block-item-btn danger" onclick="clearDetectedBlocks()" title="Clear all" style="font-size:9px;padding:1px 5px">Clear</button>
       </span>
     </div>
     <div class="block-list">${rows}</div>`;
 
   btn.disabled = false;
-  btn.textContent = `Generate ${blocks.length} Block${blocks.length > 1 ? 's' : ''}`;
+  btn.textContent = `Generate ${detectedBlocks.length} Block${detectedBlocks.length > 1 ? 's' : ''}`;
 
   const sendBtn = document.getElementById('btn-send-lh-imp');
   sendBtn.disabled = false;
