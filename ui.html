@@ -1077,44 +1077,41 @@ async function handleExportedSelection(items) {
 
 // ─── Style guide analysis ──────────────────────────────────────────────────────
 
-const STYLE_GUIDE_SYSTEM_PROMPT = `You analyze Figma designs to extract typography and color settings for a newsletter platform called Letterhead.
+const STYLE_GUIDE_SYSTEM_PROMPT = `You analyze Figma designs to extract font families and colors for a newsletter platform called Letterhead.
 
-Look at all text elements in the provided design and extract their styles. Return a JSON object with this exact structure:
+Look at all text elements and identify the font and colors used for body text, each heading level, and buttons. Return a JSON object with this exact structure:
 
 {
   "paragraph": {
-    "fontSize": <integer px>,
-    "lineHeight": <decimal ratio e.g. 1.5>,
-    "textColor": "<#HEX uppercase>",
-    "backgroundColor": "<#HEX uppercase>",
-    "paddingTop": <integer>,
-    "paddingRight": <integer>,
-    "paddingBottom": <integer>,
-    "paddingLeft": <integer>,
     "font": "<font family name>",
-    "fontFallback": "<web-safe fallback>"
+    "fontFallback": "<web-safe fallback>",
+    "textColor": "<#HEX uppercase>",
+    "backgroundColor": "<#HEX uppercase>"
   },
   "heading": {
-    "h1": { same 9 fields },
-    "h2": { same 9 fields },
-    "h3": { same 9 fields },
-    "h4": { same 9 fields },
-    "h5": { same 9 fields },
-    "h6": { same 9 fields }
+    "h1": { "font": "<font family name>", "fontFallback": "<web-safe fallback>", "textColor": "<#HEX uppercase>", "backgroundColor": "<#HEX uppercase>" },
+    "h2": { "font": "<font family name>", "fontFallback": "<web-safe fallback>", "textColor": "<#HEX uppercase>", "backgroundColor": "<#HEX uppercase>" },
+    "h3": { "font": "<font family name>", "fontFallback": "<web-safe fallback>", "textColor": "<#HEX uppercase>", "backgroundColor": "<#HEX uppercase>" },
+    "h4": { "font": "<font family name>", "fontFallback": "<web-safe fallback>", "textColor": "<#HEX uppercase>", "backgroundColor": "<#HEX uppercase>" },
+    "h5": { "font": "<font family name>", "fontFallback": "<web-safe fallback>", "textColor": "<#HEX uppercase>", "backgroundColor": "<#HEX uppercase>" },
+    "h6": { "font": "<font family name>", "fontFallback": "<web-safe fallback>", "textColor": "<#HEX uppercase>", "backgroundColor": "<#HEX uppercase>" }
+  },
+  "button": {
+    "font": "<font family name>",
+    "fontFallback": "<web-safe fallback>",
+    "textColor": "<#HEX uppercase>",
+    "backgroundColor": "<#HEX uppercase>"
   }
 }
 
 RULES:
-- paragraph: smallest or most common body text style; if none found use the most common text node
-- h1: largest heading, h2: second largest, h3–h6: progressively smaller
-- If fewer than 6 heading levels exist, derive missing ones by reducing fontSize by 2–4px per level, keeping same font and color
-- textColor: hex of the text fill (uppercase), default #020617
-- backgroundColor: hex of the nearest container background, default #FFFFFF
-- fontSize: integer pixel value extracted from metadata fontSize fields
-- lineHeight: if a pixel value, divide by fontSize to get ratio; if already a multiplier use directly; default 1.4 for paragraph, 1.2 for headings
+- paragraph: font and colors from the smallest or most common body text; if none found use the most common text node
+- h1: largest heading, h2: second largest, h3–h6: progressively smaller; if fewer than 6 heading levels exist, reuse the closest available level's font and colors
+- button: a text node or frame whose visible text label says "button" (case-insensitive); use its font and fill colors
 - font: exact font family from the metadata fontStyle or node name (e.g. "Inter", "Georgia")
-- fontFallback: closest web-safe alternative
-- paddingTop/Right/Bottom/Left: from container frame padding in metadata; if not found use 10, 25, 10, 25
+- fontFallback: closest web-safe alternative (e.g. "Arial", "Georgia", "serif", "sans-serif")
+- textColor: hex of the text fill (uppercase), default #020617
+- backgroundColor: hex of the nearest container background fill (uppercase); for button this is the button's fill color, default #FFFFFF
 - Use allTextChildren and children arrays in the metadata to find all text nodes and their styles
 
 OUTPUT: Raw JSON only. No markdown fences, no prose, no comments. Must pass JSON.parse() directly.`;
@@ -1218,16 +1215,10 @@ function applyStyleGuideToDefaults(styles) {
   const merge = (target, src) => {
     if (!src) return target;
     return Object.assign({}, target, {
-      fontSize: src.fontSize || target.fontSize,
-      lineHeight: src.lineHeight || target.lineHeight,
-      textColor: src.textColor || target.textColor,
-      backgroundColor: src.backgroundColor || target.backgroundColor,
-      paddingTop: src.paddingTop !== undefined ? src.paddingTop : target.paddingTop,
-      paddingRight: src.paddingRight !== undefined ? src.paddingRight : target.paddingRight,
-      paddingBottom: src.paddingBottom !== undefined ? src.paddingBottom : target.paddingBottom,
-      paddingLeft: src.paddingLeft !== undefined ? src.paddingLeft : target.paddingLeft,
       font: src.font || target.font,
       fontFallback: src.fontFallback || target.fontFallback,
+      textColor: src.textColor || target.textColor,
+      backgroundColor: src.backgroundColor || target.backgroundColor,
     });
   };
   if (styles && styles.paragraph) blockDefaults.paragraph = merge(blockDefaults.paragraph, styles.paragraph);
@@ -1236,6 +1227,7 @@ function applyStyleGuideToDefaults(styles) {
       if (styles.heading[lv]) blockDefaults[lv] = merge(blockDefaults[lv], styles.heading[lv]);
     }
   }
+  if (styles && styles.button) blockDefaults.button = merge(blockDefaults.button, styles.button);
   saveDefaults();
   renderStylesPanelForCurrentType();
 }
