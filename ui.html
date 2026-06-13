@@ -453,6 +453,7 @@
   <button class="tab active" id="tab-importer" onclick="switchPage('importer')">Figma → LH</button>
   <button class="tab" id="tab-builder" onclick="switchPage('builder')">Builder</button>
   <button class="tab" id="tab-send" onclick="switchPage('send')">Send</button>
+  <button class="tab" id="tab-saved-blocks" onclick="switchPage('saved-blocks')">Saved Blocks</button>
 </div>
 
 <!-- ─── Page: Settings ───────────────────────────────────────────────────────── -->
@@ -650,6 +651,33 @@
   <div style="height:8px"></div>
 </div>
 
+<!-- ─── Page: Saved Blocks ──────────────────────────────────────────────────── -->
+<div class="scroll-area" id="page-saved-blocks" style="display:none">
+  <h1>Saved Block Templates</h1>
+
+  <div class="form-group">
+    <label>Template Name</label>
+    <input type="text" id="saved-block-name" placeholder="My hero block" maxlength="191"
+      style="background-image:none;padding-right:8px">
+  </div>
+
+  <button class="btn btn-primary" id="btn-save-block" onclick="runSaveBlock()"
+    style="width:100%;margin-bottom:12px">
+    Save Selected Frame as Block
+  </button>
+
+  <div id="saved-block-status" style="display:none;margin-bottom:8px"></div>
+
+  <div class="form-group" style="margin-bottom:4px">
+    <input type="text" id="saved-blocks-search" placeholder="Search templates…"
+      oninput="debouncedFetchSavedBlocks(this.value)"
+      style="background-image:none;padding-right:8px">
+  </div>
+
+  <div id="saved-blocks-list"></div>
+  <div style="height:8px"></div>
+</div>
+
 <!-- ─── Toast ──────────────────────────────────────────────────────────────── -->
 <div class="lh-toast" id="lh-toast"></div>
 
@@ -692,13 +720,16 @@ function switchPage(page) {
   document.getElementById('page-builder').style.display = page === 'builder' ? '' : 'none';
   document.getElementById('page-importer').style.display = page === 'importer' ? '' : 'none';
   document.getElementById('page-send').style.display = page === 'send' ? '' : 'none';
+  document.getElementById('page-saved-blocks').style.display = page === 'saved-blocks' ? '' : 'none';
   document.getElementById('actions-builder').style.display = page === 'builder' ? '' : 'none';
-  document.getElementById('actions-importer').style.display = page !== 'builder' ? '' : 'none';
+  document.getElementById('actions-importer').style.display = page !== 'builder' && page !== 'saved-blocks' ? '' : 'none';
   document.getElementById('tab-settings').classList.toggle('active', page === 'settings');
   document.getElementById('tab-styles').classList.toggle('active', page === 'styles');
   document.getElementById('tab-builder').classList.toggle('active', page === 'builder');
   document.getElementById('tab-importer').classList.toggle('active', page === 'importer');
   document.getElementById('tab-send').classList.toggle('active', page === 'send');
+  document.getElementById('tab-saved-blocks').classList.toggle('active', page === 'saved-blocks');
+  if (page === 'saved-blocks') fetchSavedBlocks('');
 }
 
 // ─── Plugin ↔ UI messages ──────────────────────────────────────────────────────
@@ -986,6 +1017,10 @@ function showLoading(msg) {
 }
 
 async function handleExportedSelection(items) {
+  if (pendingAnalysisType === 'save-block') {
+    await handleSaveBlockExport(items);
+    return;
+  }
   if (pendingAnalysisType === 'style-guide') {
     await handleStyleGuideExport(items);
     return;
@@ -3546,6 +3581,189 @@ document.getElementById('feature-builder-tab').checked = !!features.showBuilderT
 document.getElementById('feature-preview-toggle').checked = !!features.showPreviewToggle;
 document.getElementById('feature-create-blocks').checked = !!features.showCreateBlocks;
 applyFeatures();
+
+// ─── Saved Blocks tab ────────────────────────────────────────────────────────
+
+const SAVED_BLOCK_TYPE_INT = {
+  blockquote: 0, button: 1, curation: 2, divider: 3, dynamic: 4,
+  newpromotion: 5, evvnt: 6, footer: 7, heading: 8, html: 9,
+  image: 10, layout: 12, logo: 13, promotion: 14, newrss: 15,
+  news: 16, paragraph: 17, poll: 18, rss: 21, profile: 22,
+  share: 23, youtube: 24, aiText: 26, 'nested-layout-2-column': 28,
+  audio: 29,
+};
+
+function savedBlockShowStatus(msg, isError) {
+  const el = document.getElementById('saved-block-status');
+  el.style.display = '';
+  el.innerHTML = `<div class="${isError ? 'no-key-warning' : 'loading-state'}">${esc(msg)}</div>`;
+  if (isError) el.querySelector('div').style.display = 'block';
+}
+
+function savedBlockClearStatus() {
+  const el = document.getElementById('saved-block-status');
+  el.style.display = 'none';
+  el.innerHTML = '';
+}
+
+function runSaveBlock() {
+  const activeKey = activeProvider === 'openai' ? storedOpenaiKey : storedApiKey;
+  if (!activeKey) {
+    savedBlockShowStatus('Add an AI API key in Settings first.', true);
+    return;
+  }
+  const lhKey = (document.getElementById('lh-api-key-imp').value || '').trim() || savedLhApiKey;
+  if (!lhKey) {
+    savedBlockShowStatus('Add a Letterhead API key in Settings first.', true);
+    return;
+  }
+  savedBlockShowStatus('Exporting frame from Figma…', false);
+  document.getElementById('btn-save-block').disabled = true;
+  pendingAnalysisType = 'save-block';
+  parent.postMessage({ pluginMessage: { type: 'export-selection' } }, '*');
+}
+
+async function handleSaveBlockExport(items) {
+  const btn = document.getElementById('btn-save-block');
+  try {
+    if (!items || items.length === 0) {
+      savedBlockShowStatus('No frame selected. Select a frame in Figma and try again.', true);
+      return;
+    }
+
+    const providerLabel = activeProvider === 'openai' ? 'GPT-4o' : 'Claude';
+    savedBlockShowStatus(`Asking ${providerLabel} to analyze the frame…`, false);
+
+    const prepared = items.map(item => ({
+      nodeId: item.nodeId,
+      nodeName: item.nodeName,
+      base64: uint8ToBase64(item.imageBytes),
+      uploadBase64: item.imageChildBytes?.length
+        ? uint8ToBase64(item.imageChildBytes[0])
+        : uint8ToBase64(item.imageBytes),
+      metadata: item.metadata,
+      html: item.html || '',
+    }));
+
+    const activeKey = activeProvider === 'openai' ? storedOpenaiKey : storedApiKey;
+    const rawBlocks = activeProvider === 'openai'
+      ? await callOpenAiVision(prepared, activeKey)
+      : await callClaudeVision(prepared, activeKey);
+
+    if (!rawBlocks || rawBlocks.length === 0) {
+      savedBlockShowStatus('AI could not identify a block in this frame.', true);
+      return;
+    }
+
+    const block = rawBlocks[0];
+    const typeString = block.type || 'paragraph';
+    const typeInt = SAVED_BLOCK_TYPE_INT[typeString] ?? 17;
+
+    const name = (document.getElementById('saved-block-name').value || '').trim()
+      || items[0].nodeName
+      || 'Untitled Block';
+
+    const lhKey = (document.getElementById('lh-api-key-imp').value || '').trim() || savedLhApiKey;
+    const baseUrl = (document.getElementById('lh-base-url-imp').value || '').trim()
+      || savedLhBaseUrl || 'https://qa-devin.api.tryletterhead.dev';
+
+    savedBlockShowStatus('Saving block template…', false);
+
+    const res = await fetch(baseUrl + '/api/v3/blocks', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + lhKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name,
+        type: typeInt,
+        claimant: 'figma-plugin',
+        block: JSON.stringify(block),
+      }),
+    });
+
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(json.message || json.error || ('HTTP ' + res.status));
+    }
+
+    savedBlockShowStatus(`Saved "${name}" ✓`, false);
+    document.getElementById('saved-block-name').value = '';
+    fetchSavedBlocks('');
+
+  } catch (err) {
+    savedBlockShowStatus('Error: ' + (err.message || String(err)), true);
+  } finally {
+    btn.disabled = false;
+    pendingAnalysisType = null;
+  }
+}
+
+let savedBlocksSearchTimer = null;
+function debouncedFetchSavedBlocks(keyword) {
+  clearTimeout(savedBlocksSearchTimer);
+  savedBlocksSearchTimer = setTimeout(() => fetchSavedBlocks(keyword), 400);
+}
+
+async function fetchSavedBlocks(keyword) {
+  const lhKey = (document.getElementById('lh-api-key-imp').value || '').trim() || savedLhApiKey;
+  const baseUrl = (document.getElementById('lh-base-url-imp').value || '').trim()
+    || savedLhBaseUrl || 'https://qa-devin.api.tryletterhead.dev';
+  const container = document.getElementById('saved-blocks-list');
+  if (!container) return;
+
+  if (!lhKey) {
+    container.innerHTML = `<div class="empty-state"><span class="icon">◇</span>Add a Letterhead API key in Settings to load saved blocks.</div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="loading-state"><span class="spinner"></span>Loading…</div>`;
+
+  try {
+    const params = new URLSearchParams({ page: '1', perPage: '20' });
+    if (keyword && keyword.trim()) params.set('keyword', keyword.trim());
+
+    const res = await fetch(baseUrl + '/api/v3/blocks?' + params.toString(), {
+      headers: { 'Authorization': 'Bearer ' + lhKey },
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.message || json.error || ('HTTP ' + res.status));
+
+    const templates = json?.data?.blockTemplates || [];
+    if (templates.length === 0) {
+      container.innerHTML = `<div class="empty-state"><span class="icon">◇</span>No saved block templates yet.</div>`;
+      return;
+    }
+
+    const BLOCK_TYPE_LABELS = {
+      0:'Blockquote', 1:'Button', 2:'Curation', 3:'Divider', 4:'Dynamic',
+      5:'Dynamic Promotion', 6:'Evvnt', 7:'Footer', 8:'Heading', 9:'HTML',
+      10:'Image', 11:'Iterable Snippet', 12:'Layout', 13:'Logo', 14:'New Promotion',
+      15:'New RSS', 16:'News', 17:'Paragraph', 18:'Poll', 19:'Promotion',
+      21:'RSS', 22:'Social Profile', 23:'Social Share', 24:'YouTube',
+      26:'AI Text', 28:'Nested Layout', 29:'Audio', 99:'Block Group',
+    };
+
+    const rows = templates.map(t => {
+      const typeLabel = BLOCK_TYPE_LABELS[t.type] || ('Type ' + t.type);
+      const color = BLOCK_BADGE_COLORS[Object.keys(SAVED_BLOCK_TYPE_INT).find(k => SAVED_BLOCK_TYPE_INT[k] === t.type)] || '#6B7280';
+      const date = t.createdAt ? new Date(t.createdAt).toLocaleDateString() : '';
+      return `
+        <div class="block-item">
+          <div class="block-item-hd" style="cursor:default">
+            <span class="block-badge" style="background:${color}">${esc(typeLabel)}</span>
+            <span class="block-node-name">${esc(t.name)}</span>
+            ${date ? `<span class="block-preview">${esc(date)}</span>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `<div class="block-list">${rows}</div>`;
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state" style="color:#ef4444">Error: ${esc(err.message || String(err))}</div>`;
+  }
+}
 
 // Autosave: watch all builder form inputs for changes
 (function() {
